@@ -1,0 +1,23 @@
+rules_version = '2';
+// Only signed-in team members can read or write. Prices, settings and users
+// can be changed by the admin only. Replace ADMIN_EMAIL before publishing.
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email == 'ADMIN_EMAIL' ||
+        (exists(/databases/$(db)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+    function member() {
+      return isAdmin() || (signedIn() && exists(/databases/$(db)/documents/users/$(request.auth.uid)));
+    }
+
+    match /quotes/{id}    { allow read, write: if member(); }
+    match /clients/{id}   { allow read, write: if member(); }
+    match /companies/{id} { allow read, write: if member(); }
+    match /settings/{id}  { allow read: if member(); allow write: if isAdmin(); }
+    match /users/{uid}    { allow read: if member(); allow write: if isAdmin(); }
+  }
+}
