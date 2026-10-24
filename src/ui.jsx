@@ -52,3 +52,18 @@ export function download(name, content, type = "text/csv;charset=utf-8") {
   a.href = url; a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
+
+// two-step delete button (no browser dialogs: they are blocked in some views)
+export function ConfirmButton({ onConfirm, children, ask = "اضغط مرة أخرى للتأكيد", className = "lq danger", ...rest }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 3000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <button type="button" className={className} {...rest} onClick={() => (armed ? (setArmed(false), onConfirm()) : setArmed(true))}>
+      {armed ? ask : children}
+    </button>
+  );
+}

@@ -6,7 +6,7 @@ import { renderQuote, downloadQuote } from "../pdf/render.js";
 import Preview from "../pdf/Preview.jsx";
 import { quoteTotal, clientTypeLabel } from "../lib/compose.js";
 import { STATUSES, DEFAULT_TERMS, ORDINALS } from "../data/catalog.js";
-import { money, toast } from "../ui.jsx";
+import { money, toast, ConfirmButton } from "../ui.jsx";
 import { resolveItem, cardTotals } from "../pdf/engine.js";
 
 const BLOCK_TYPES = [
@@ -96,7 +96,6 @@ export default function Editor() {
     nav(`/quote/${copy.id}`);
   }
   async function del() {
-    if (!confirm("حذف هذا العرض نهائيا؟")) return;
     await remove("quotes", id);
     nav("/quotes");
   }
@@ -117,7 +116,7 @@ export default function Editor() {
           </select>
           <button className="lq primary" onClick={() => downloadQuote(d, pricing || { services: {} }, theme)}>تصدير PDF</button>
           <button className="lq" onClick={duplicate}>نسخ</button>
-          <button className="lq danger" onClick={del}>حذف</button>
+          <ConfirmButton onConfirm={del}>حذف</ConfirmButton>
         </div>
       </div>
 
@@ -143,7 +142,7 @@ export default function Editor() {
                 <b>صفحة {pi + 1}</b>
                 <button className="lq icon sm" title="أعلى" onClick={() => setPages(move(d.pages, pi, -1))}>↑</button>
                 <button className="lq icon sm" title="أسفل" onClick={() => setPages(move(d.pages, pi, 1))}>↓</button>
-                {d.pages.length > 1 && <button className="lq sm danger" onClick={() => confirm("حذف الصفحة؟") && setPages(d.pages.filter((_, i) => i !== pi))}>حذف الصفحة</button>}
+                {d.pages.length > 1 && <ConfirmButton className="lq sm danger" onConfirm={() => setPages(d.pages.filter((_, i) => i !== pi))}>حذف الصفحة</ConfirmButton>}
               </div>
               <label className="f">عنوان الصفحة<input className="in" value={p.title} onChange={(e) => setPage(pi, { title: e.target.value })} /></label>
 

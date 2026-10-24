@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useAuth } from "../auth.jsx";
 import { put, remove, useCollection } from "../lib/store.js";
-import { toCSV, parseCSV, download, toast } from "../ui.jsx";
+import { toCSV, parseCSV, download, toast, ConfirmButton } from "../ui.jsx";
 
 export default function Registry({ col, title, fields, columns, extra }) {
   const { user } = useAuth();
@@ -74,7 +74,7 @@ export default function Registry({ col, title, fields, columns, extra }) {
             <button className="lq primary">حفظ</button>
             <button type="button" className="lq" onClick={() => setEdit(null)}>إلغاء</button>
             <span className="spacer" />
-            {edit.id && <button type="button" className="lq danger" onClick={async () => { if (confirm("حذف السجل؟")) { await remove(col, edit.id); setEdit(null); } }}>حذف</button>}
+            {edit.id && <ConfirmButton onConfirm={async () => { await remove(col, edit.id); setEdit(null); }}>حذف</ConfirmButton>}
           </div>
         </form>
       )}
