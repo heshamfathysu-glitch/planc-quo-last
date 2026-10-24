@@ -11,4 +11,4 @@ export const firebaseConfig = {
 };
 
 // The admin account (full access to settings, prices and users).
-export const adminEmail = "";
+export const adminEmail = "hesham@digitalplanc.com";

@@ -1,12 +1,12 @@
 rules_version = '2';
 // Only signed-in team members can read or write. Prices, settings and users
-// can be changed by the admin only. Replace ADMIN_EMAIL before publishing.
+// can be changed by the admin only. Admin: hesham@digitalplanc.com
 service cloud.firestore {
   match /databases/{db}/documents {
     function signedIn() { return request.auth != null; }
     function isAdmin() {
       return signedIn() && (
-        request.auth.token.email == 'ADMIN_EMAIL' ||
+        request.auth.token.email.lower() == 'hesham@digitalplanc.com' ||
         (exists(/databases/$(db)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
