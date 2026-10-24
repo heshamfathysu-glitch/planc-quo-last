@@ -23,7 +23,7 @@ export const MASTER_THEME = {
   titleWeight: "regular", // "regular" | "bold" for titles and totals
 };
 
-const PW = 595.2755905511812, PH = 841.8897637795277; // A4
+const PW = 595.2755905511812; // A4 width
 const ML = 41.5;
 const MR = PW - ML;
 const CW = MR - ML;
