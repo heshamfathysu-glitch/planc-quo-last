@@ -48,6 +48,7 @@ export default function Editor() {
   const [q, setQ] = useState(null);
   const [pdf, setPdf] = useState({ blob: null, warnings: [], error: "" });
   const [saved, setSaved] = useState("");
+  const [view, setView] = useState("edit");
   const timer = useRef(null);
 
   useEffect(() => { get("quotes", id).then(setQ); }, [id]);
@@ -110,8 +111,8 @@ export default function Editor() {
           <h1>{d.client}</h1>
           <div className="sub">{d.quote_no} · {money(q.total)} · أعده {a.preparer || q.createdBy}</div>
         </div>
-        <div className="row">
-          <select className="in" style={{ width: "auto" }} value={q.status} onChange={(e) => setStatus(e.target.value)}>
+        <div className="row editor-actions">
+          <select className="in auto" value={q.status} onChange={(e) => setStatus(e.target.value)}>
             {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
           <button className="lq primary" onClick={() => downloadQuote(d, pricing || { services: {} }, theme)}>تصدير PDF</button>
@@ -120,8 +121,13 @@ export default function Editor() {
         </div>
       </div>
 
-      <div className="editor">
-        <div style={{ display: "grid", gap: 16 }}>
+      <div className="tabs viewswitch">
+        <button className={`tab${view === "edit" ? " on" : ""}`} onClick={() => setView("edit")}>تعديل</button>
+        <button className={`tab${view === "preview" ? " on" : ""}`} onClick={() => setView("preview")}>معاينة</button>
+      </div>
+
+      <div className="editor" data-view={view}>
+        <div className="edit-col">
           <div className="card grid g2">
             <label className="f">مقدم إلى<input className="in" value={d.client} onChange={(e) => setData({ client: e.target.value })} /></label>
             <label className="f">رقم العرض<input className="in" dir="ltr" value={d.quote_no} onChange={(e) => setData({ quote_no: e.target.value })} /></label>
@@ -171,7 +177,7 @@ export default function Editor() {
               ))}
 
               <div className="row">
-                <select className="in" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && setPage(pi, { blocks: [...p.blocks, newBlock(e.target.value, cardsCount + 1)] })}>
+                <select className="in auto" value="" onChange={(e) => e.target.value && setPage(pi, { blocks: [...p.blocks, newBlock(e.target.value, cardsCount + 1)] })}>
                   <option value="">+ إضافة قسم...</option>
                   {BLOCK_TYPES.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
                 </select>
@@ -183,9 +189,9 @@ export default function Editor() {
         </div>
 
         <div className="preview">
-          {pdf.error && <div className="err" style={{ padding: 16, background: "#000" }}>{pdf.error}</div>}
+          {pdf.error && <div className="err" style={{ padding: 16 }}>{pdf.error}</div>}
           {pdf.warnings?.length > 0 && (
-            <div className="warn" style={{ padding: "8px 14px", background: "#1b1446" }}>
+            <div className="warn" style={{ padding: "8px 14px" }}>
               {pdf.warnings.map((w) => `الصفحة ${w.page} تتجاوز المساحة بـ ${w.overflow} نقطة، انقل قسما إلى صفحة أخرى.`).join(" ")}
             </div>
           )}
@@ -210,7 +216,7 @@ function BlockEditor({ b, set, pricing, termsLib }) {
           <div key={i} style={{ display: "grid", gap: 6 }}>
             <div className="row">
               <span className="badge">{String(i + 1).padStart(2, "0")}</span>
-              <input className="in" style={{ flex: 1, width: "auto" }} placeholder="العنوان" value={it.title} onChange={(e) => upd(i, { title: e.target.value })} />
+              <input className="in auto" style={{ flex: 1 }} placeholder="العنوان" value={it.title} onChange={(e) => upd(i, { title: e.target.value })} />
               <button className="lq icon sm" onClick={() => set({ items: move(b.items, i, -1) })}>↑</button>
               <button className="lq icon sm danger" onClick={() => set({ items: b.items.filter((_, j) => j !== i) })}>×</button>
             </div>
@@ -219,7 +225,7 @@ function BlockEditor({ b, set, pricing, termsLib }) {
         ))}
         <div className="row">
           <button className="lq sm" onClick={() => set({ items: [...b.items, { title: "", text: "" }] })}>+ بند</button>
-          <select className="in" style={{ width: "auto" }} value="" onChange={(e) => {
+          <select className="in auto" value="" onChange={(e) => {
             const t = termsLib[Number(e.target.value)];
             if (t) set({ items: [...b.items, { title: t.title, text: t.text }] });
           }}>
@@ -239,7 +245,7 @@ function BlockEditor({ b, set, pricing, termsLib }) {
         <input className="in" placeholder="عنوان الرسم (اختياري)" value={b.title || ""} onChange={(e) => set({ title: e.target.value })} />
         {b.rows.map((r, i) => (
           <div className="row" key={i}>
-            <input className="in" style={{ flex: 1, width: "auto" }} placeholder="التسمية" value={r.label} onChange={(e) => upd(i, { label: e.target.value })} />
+            <input className="in auto" style={{ flex: 1 }} placeholder="التسمية" value={r.label} onChange={(e) => upd(i, { label: e.target.value })} />
             <input className="in" style={{ width: 130 }} type="number" placeholder="القيمة" value={r.value} onChange={(e) => upd(i, { value: Number(e.target.value) || 0 })} />
             <button className="lq icon sm danger" onClick={() => set({ rows: b.rows.filter((_, j) => j !== i) })}>×</button>
           </div>
@@ -265,14 +271,14 @@ function CardEditor({ b, set, pricing }) {
     <div style={{ display: "grid", gap: 10 }}>
       <div className="row">
         <input className="in" style={{ width: 70 }} dir="ltr" value={b.number} onChange={(e) => set({ number: e.target.value })} />
-        <input className="in" style={{ flex: 1, width: "auto" }} value={b.title} onChange={(e) => set({ title: e.target.value })} />
+        <input className="in auto" style={{ flex: 1 }} value={b.title} onChange={(e) => set({ title: e.target.value })} />
       </div>
       {b.items.map((it, i) => {
         const kind = "service" in it ? "service" : "value" in it ? "value" : "amount";
         return (
           <div key={i} className="card" style={{ padding: 12, display: "grid", gap: 8 }}>
             <div className="row">
-              <select className="in" style={{ width: "auto" }} value={kind} onChange={(e) => {
+              <select className="in auto" value={kind} onChange={(e) => {
                 const k = e.target.value;
                 if (k === "service") upd(i, { service: svcs[0]?.[0], qty: 1, title: undefined, desc: undefined, amount: undefined, value: undefined });
                 else if (k === "value") upd(i, { service: undefined, qty: undefined, amount: undefined, value: "" });
@@ -288,7 +294,7 @@ function CardEditor({ b, set, pricing }) {
             </div>
             {kind === "service" ? (
               <div className="row">
-                <select className="in" style={{ flex: 1, width: "auto" }} value={it.service} onChange={(e) => upd(i, { service: e.target.value })}>
+                <select className="in auto" style={{ flex: 1 }} value={it.service} onChange={(e) => upd(i, { service: e.target.value })}>
                   {svcs.map(([k, s]) => <option key={k} value={k}>{s.title}</option>)}
                 </select>
                 <input className="in" style={{ width: 110 }} type="number" min="1" value={it.qty} onChange={(e) => upd(i, { qty: Number(e.target.value) || 1 })} />
@@ -313,7 +319,7 @@ function CardEditor({ b, set, pricing }) {
         <label className="f">عنوان الإجمالي<input className="in" placeholder="الإجمالي شامل الضريبة" value={b.total_label || ""} onChange={(e) => set({ total_label: e.target.value || undefined })} /></label>
         <label className="f row" style={{ flexDirection: "row" }}><input type="checkbox" checked={b.vat !== false} onChange={(e) => set({ vat: e.target.checked ? undefined : false })} /> يشمل ضريبة القيمة المضافة 15%</label>
       </div>
-      {totals && <div className="sub">الإجمالي: <b style={{ color: "#fff" }}>{money(totals.total)}</b></div>}
+      {totals && <div className="sub">الإجمالي: <b style={{ color: "var(--ink)" }}>{money(totals.total)}</b></div>}
     </div>
   );
 }

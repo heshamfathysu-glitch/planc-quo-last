@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../auth.jsx";
 import { CLOUD } from "../lib/store.js";
 import { resetPassword } from "../lib/firebase.js";
-import logoWhite from "../assets/logo_white.png";
+import { LOGO } from "../theme.js";
 
 export default function Login() {
   const { login } = useAuth();
@@ -22,8 +22,8 @@ export default function Login() {
 
   return (
     <form className="login card" onSubmit={submit}>
-      <img src={logoWhite} alt="PLAN C" />
-      <h1 style={{ fontSize: 22, textAlign: "center" }}>عروض أسعار PLAN C</h1>
+      <img src={LOGO} alt="PLAN C" />
+      <h1>عروض أسعار PLAN C</h1>
       {!CLOUD && (
         <>
           <p className="sub" style={{ textAlign: "center", margin: 0 }}>وضع تجريبي: البيانات تحفظ في هذا المتصفح فقط حتى يُربط Firebase.</p>

@@ -41,8 +41,8 @@ export default function Dashboard() {
           <div style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 180 }}>
             {months.map((m) => (
               <div key={m.k} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }} title={`${money(m.total)} / المعتمد ${money(m.won)}`}>
-                <div style={{ width: "100%", maxWidth: 40, height: `${(m.total / max) * 100}%`, minHeight: 2, background: "rgba(255,255,255,0.25)", borderRadius: 8, position: "relative", overflow: "hidden" }}>
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: m.total ? `${(m.won / m.total) * 100}%` : 0, background: "#7ee2b8" }} />
+                <div style={{ width: "100%", maxWidth: 40, height: `${(m.total / max) * 100}%`, minHeight: 2, background: "var(--bar)", borderRadius: 8, position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: m.total ? `${(m.won / m.total) * 100}%` : 0, background: "var(--ok)" }} />
                 </div>
                 <span className="sub" style={{ fontSize: 12 }}>{m.label}</span>
               </div>

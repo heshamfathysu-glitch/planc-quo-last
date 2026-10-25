@@ -28,7 +28,7 @@ export default function Quotes() {
       <div className="page-head">
         <h1>سجل العروض</h1>
         <div className="row">
-          <input className="in" style={{ width: 220 }} placeholder="بحث..." value={qx} onChange={(e) => setQx(e.target.value)} />
+          <input className="in search" placeholder="بحث..." value={qx} onChange={(e) => setQx(e.target.value)} />
           <button className="lq sm" onClick={exportCSV}>تصدير Excel</button>
         </div>
       </div>
@@ -38,18 +38,18 @@ export default function Quotes() {
       </div>
       <div className="card tablewrap">
         {!rows.length ? <div className="empty">لا توجد عروض</div> : (
-          <table className="t">
+          <table className="t cards">
             <thead><tr><th>رقم العرض</th><th>مقدم إلى</th><th>أعده</th><th>تاريخ الإصدار</th><th>الإجمالي</th><th>الحالة</th><th>آخر تحديث</th></tr></thead>
             <tbody>
               {rows.map((q) => (
                 <tr key={q.id}>
-                  <td dir="ltr" style={{ textAlign: "right" }}><Link to={q.data ? `/quote/${q.id}` : `/new/${q.id}`}>{q.data?.quote_no || "مسودة غير مكتملة"}</Link></td>
-                  <td>{q.data?.client || q.answers?.addressedTo || "—"}</td>
-                  <td className="sub">{q.answers?.preparer || q.createdBy}</td>
-                  <td className="sub">{q.data?.issue_date || "—"}</td>
-                  <td>{q.total ? money(q.total) : "—"}</td>
-                  <td><StatusBadge s={q.status} /></td>
-                  <td className="sub">{new Date(q.updatedAt).toLocaleDateString("ar-SA-u-nu-latn")}</td>
+                  <td className="lead ltr-cell"><Link to={q.data ? `/quote/${q.id}` : `/new/${q.id}`}>{q.data?.quote_no || "مسودة غير مكتملة"}</Link></td>
+                  <td data-label="مقدم إلى">{q.data?.client || q.answers?.addressedTo || "—"}</td>
+                  <td className="sub" data-label="أعده">{q.answers?.preparer || q.createdBy}</td>
+                  <td className="sub" data-label="الإصدار">{q.data?.issue_date || "—"}</td>
+                  <td data-label="الإجمالي">{q.total ? money(q.total) : "—"}</td>
+                  <td className="end"><StatusBadge s={q.status} /></td>
+                  <td className="sub" data-label="آخر تحديث">{new Date(q.updatedAt).toLocaleDateString("ar-SA-u-nu-latn")}</td>
                 </tr>
               ))}
             </tbody>

@@ -84,7 +84,7 @@ function Terms() {
       {t.map((x, i) => (
         <div key={i} className="block">
           <div className="row">
-            <input className="in" style={{ flex: 1, width: "auto" }} value={x.title} onChange={(e) => upd(i, { title: e.target.value })} />
+            <input className="in auto" style={{ flex: 1 }} value={x.title} onChange={(e) => upd(i, { title: e.target.value })} />
             <label className="row sub"><input type="checkbox" checked={x.default !== false} onChange={(e) => upd(i, { default: e.target.checked })} /> تلقائي</label>
             <button className="lq icon sm danger" onClick={() => setItems(t.filter((_, j) => j !== i))}>×</button>
           </div>
@@ -127,7 +127,7 @@ function Theme() {
             <div className="row">
               <input type="color" value={hex(t[k])} onChange={(e) => setTh({ ...t, [k]: rgb(e.target.value) })} />
               <div className="chips">
-                {palette.map((c) => <button key={c} type="button" title={c} onClick={() => setTh({ ...t, [k]: rgb(c) })} style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #fff4", background: c, cursor: "pointer" }} />)}
+                {palette.map((c) => <button key={c} type="button" title={c} onClick={() => setTh({ ...t, [k]: rgb(c) })} style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--line)", background: c, cursor: "pointer" }} />)}
               </div>
             </div>
           </label>
@@ -175,14 +175,14 @@ function Users() {
         {err && <div className="err">{err}</div>}
       </form>
       <div className="card tablewrap">
-        <table className="t">
+        <table className="t cards">
           <thead><tr><th>الاسم</th><th>البريد</th><th>الصلاحية</th></tr></thead>
           <tbody>
             {(users || []).map((u) => (
               <tr key={u.id}>
-                <td>{u.name}</td><td dir="ltr" style={{ textAlign: "right" }}>{u.email}</td>
-                <td>
-                  <select className="in" style={{ width: "auto" }} value={u.role} disabled={u.id === user.uid} onChange={(e) => put("users", { ...u, role: e.target.value }, user)}>
+                <td className="lead">{u.name}</td><td className="ltr-cell sub">{u.email}</td>
+                <td className="end">
+                  <select className="in auto" value={u.role} disabled={u.id === user.uid} onChange={(e) => put("users", { ...u, role: e.target.value }, user)}>
                     <option value="user">مستخدم</option><option value="admin">أدمن</option>
                   </select>
                 </td>

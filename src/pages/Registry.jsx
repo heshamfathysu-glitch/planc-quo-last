@@ -45,7 +45,7 @@ export default function Registry({ col, title, fields, columns, extra }) {
       <div className="page-head">
         <h1>{title}</h1>
         <div className="row">
-          <input className="in" style={{ width: 200 }} placeholder="بحث..." value={qx} onChange={(e) => setQx(e.target.value)} />
+          <input className="in search" placeholder="بحث..." value={qx} onChange={(e) => setQx(e.target.value)} />
           <button className="lq sm" onClick={() => fileRef.current.click()}>استيراد</button>
           <button className="lq sm" onClick={() => download(`${col}.csv`, toCSV(rows, fields))}>تصدير Excel</button>
           <button className="lq sm" onClick={() => download(`${col}-template.csv`, toCSV([], fields))}>نموذج الاستيراد</button>
@@ -81,14 +81,14 @@ export default function Registry({ col, title, fields, columns, extra }) {
 
       <div className="card tablewrap">
         {!rows.length ? <div className="empty">لا توجد سجلات بعد</div> : (
-          <table className="t">
+          <table className="t cards">
             <thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{extra && <th>{extra.label}</th>}<th /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  {columns.map((c) => <td key={c.key} dir={c.ltr ? "ltr" : undefined} style={c.ltr ? { textAlign: "right" } : null}>{c.render ? c.render(r) : r[c.key] || "—"}</td>)}
-                  {extra && <td>{extra.render(r)}</td>}
-                  <td><button className="lq sm" onClick={() => setEdit(r)}>تعديل</button></td>
+                  {columns.map((c, i) => <td key={c.key} className={[i === 0 && "lead", c.ltr && "ltr-cell"].filter(Boolean).join(" ") || undefined} data-label={i ? c.label : undefined}>{c.render ? c.render(r) : r[c.key] || "—"}</td>)}
+                  {extra && <td data-label={extra.label}>{extra.render(r)}</td>}
+                  <td className="end"><button className="lq sm" onClick={() => setEdit(r)}>تعديل</button></td>
                 </tr>
               ))}
             </tbody>
