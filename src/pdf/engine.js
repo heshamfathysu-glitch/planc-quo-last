@@ -163,7 +163,8 @@ class Quote {
     const c = this.c, t = this.t;
     c.setFillColor(...t.navy);
     c.rect(0, 0, PW, 5.5, "F");
-    if (this.logo) c.addImage(this.logo, "PNG", ML, 42.81, 144, 67.19156, "logo", "FAST");
+    // logo at 75% of the master size, kept on the same vertical centre
+    if (this.logo) c.addImage(this.logo, "PNG", ML, 51.20789, 108, 50.39367, "logo", "FAST");
     this.rtext(MR, 73, page.title, 22, t.navy, this.emph());
     this.rtext(MR, 95, page.subtitle || this.d.subtitle, 9.5, t.muted);
     this.hline(HEADER_LINE);
