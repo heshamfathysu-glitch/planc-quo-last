@@ -6,6 +6,6 @@ import logoWhite from "./assets/logo_white_ui.png";
 export const THEME = "glass";
 export const LOGO = THEME === "light" ? logoNavy : logoWhite;
 
-// "image" (the blue gradient photo, assets/bg-blue.jpg) or "neat" (the animated
-// NEAT gradient, src/data/neatConfig.js). Each sits under its own dark layer.
+// "image" (three photos taking turns: blue, orange, green; assets/bg-*.jpg) or
+// "neat" (the animated NEAT gradient, src/data/neatConfig.js).
 export const BACKGROUND = "image";
