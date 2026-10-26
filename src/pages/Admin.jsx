@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
-import { useSetting, setSetting, list, put, useCollection, CLOUD, DEMO } from "../lib/store.js";
+import { useSetting, setSetting, list, put, remove, useCollection, CLOUD, DEMO } from "../lib/store.js";
 import { createUser } from "../lib/firebase.js";
 import { DEFAULT_TERMS } from "../data/catalog.js";
 import { MASTER_THEME } from "../pdf/engine.js";
-import { toast, download } from "../ui.jsx";
+import { toast, download, ConfirmButton } from "../ui.jsx";
 import { errorText } from "../lib/notify.js";
 import { useAuth } from "../auth.jsx";
 
@@ -214,11 +214,43 @@ function Backup() {
     toast(`تمت استعادة ${n} سجل`);
   }
   return (
-    <div className="card row">
-      <button className="lq" onClick={exp}>تنزيل نسخة احتياطية</button>
-      <button className="lq" onClick={() => ref.current.click()}>استعادة من نسخة</button>
-      <input ref={ref} type="file" accept=".json" hidden onChange={(e) => e.target.files[0] && imp(e.target.files[0])} />
-      <span className="sub">مفيد لنقل بيانات الوضع التجريبي إلى Firebase بعد الربط.</span>
+    <div className="grid">
+      <div className="card row">
+        <button className="lq" onClick={exp}>تنزيل نسخة احتياطية</button>
+        <button className="lq" onClick={() => ref.current.click()}>استعادة من نسخة</button>
+        <input ref={ref} type="file" accept=".json" hidden onChange={(e) => e.target.files[0] && imp(e.target.files[0])} />
+        <span className="sub">مفيد لنقل بيانات الوضع التجريبي إلى Firebase بعد الربط.</span>
+      </div>
+      <ClearQuotes />
+    </div>
+  );
+}
+
+// Start over: deletes every saved quote (clients, companies and settings stay).
+function ClearQuotes() {
+  const [quotes] = useCollection("quotes");
+  const [busy, setBusy] = useState(false);
+  const n = quotes?.length ?? 0;
+  async function clear() {
+    setBusy(true);
+    try {
+      for (const q of await list("quotes")) await remove("quotes", q.id);
+      toast("تم حذف كل العروض");
+    } catch { /* remove() already showed the error */ }
+    setBusy(false);
+  }
+  return (
+    <div className="card grid">
+      <b>البدء من الصفر</b>
+      <span className="sub">
+        {CLOUD ? "يحذف كل العروض المحفوظة في قاعدة البيانات" : "يحذف كل العروض المحفوظة في هذا المتصفح"} ({n} عرض). العملاء والشركات والإعدادات تبقى كما هي.
+        لا يمكن التراجع عن الحذف، فنزّل نسخة احتياطية أولا.
+      </span>
+      <div className="row">
+        <ConfirmButton disabled={busy || !n} onConfirm={clear} ask={`اضغط مرة أخرى لحذف ${n} عرض`}>
+          {busy ? "جار الحذف..." : "حذف كل العروض"}
+        </ConfirmButton>
+      </div>
     </div>
   );
 }

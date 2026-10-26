@@ -471,9 +471,17 @@ td, .block, .card { overflow-wrap: break-word; }
 .in, select.in, textarea.in { min-width: 0; max-width: 100%; }
 .block div, .pagebox div { min-width: 0; }
 
-/* ---------- animated NEAT background ---------- */
-html { background: #190f32; }
+/* ---------- background (theme.js BACKGROUND) ---------- */
+html { background: #0e1724; }
 body { background: transparent; }
+/* blue gradient photo (the supplied image with its "AI creative solutions" text
+   removed) under a 50% dark layer: the photo turns light blue at the
+   bottom, so 50% keeps white text readable there while the blue still shows */
+.photo-bg {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("./assets/bg-blue.jpg") center / cover no-repeat;
+}
+/* animated NEAT background */
 .neat-bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
 /* dark layer at 90% over the whole background (NeatBackground.jsx). The NEAT
    free-licence mark in the canvas's bottom-right corner stays uncovered. */

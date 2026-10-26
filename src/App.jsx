@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from "./auth.jsx";
 import { CLOUD, DEMO } from "./lib/store.js";
 import { Toaster, Loading, Footer } from "./ui.jsx";
 import { createDraft } from "./lib/newQuote.js";
-import { THEME, LOGO } from "./theme.js";
+import { THEME, LOGO, BACKGROUND } from "./theme.js";
 import NeatBackground from "./NeatBackground.jsx";
 import Login from "./pages/Login.jsx";
 import Home from "./pages/Home.jsx";
@@ -144,7 +144,7 @@ export default function App() {
   useEffect(() => { document.documentElement.dataset.theme = THEME; }, []);
   return (
     <AuthProvider>
-      <NeatBackground />
+      {BACKGROUND === "neat" ? <NeatBackground /> : <div className="photo-bg" aria-hidden="true" />}
       <HashRouter>
         <Gate />
       </HashRouter>
