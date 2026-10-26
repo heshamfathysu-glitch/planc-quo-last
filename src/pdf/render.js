@@ -24,7 +24,9 @@ export async function downloadQuote(data, pricing, theme) {
   const { url } = await renderQuote(data, pricing, theme);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${data.quote_no || "quote"} - ${data.client || ""}.pdf`;
+  a.download = `${data.quote_no || "quote"} - ${data.client || ""}.pdf`.replace(/[\\/:*?"<>|]+/g, "-");
+  document.body.appendChild(a); // some browsers ignore the file name on detached links
   a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCollection } from "../lib/store.js";
 import { STATUSES, statusLabel } from "../data/catalog.js";
-import { StatusBadge, money, toCSV, download } from "../ui.jsx";
+import { StatusBadge, money, toCSV, download, toast } from "../ui.jsx";
 
 export default function Quotes() {
   const [quotes] = useCollection("quotes");
@@ -14,21 +14,21 @@ export default function Quotes() {
     .filter((q) => !qx || JSON.stringify([q.data?.client, q.data?.quote_no, q.answers?.partyName, q.answers?.preparer]).includes(qx))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-  const exportCSV = () => download("quotes.csv", toCSV(rows.map((q) => ({
+  const exportCSV = () => (toast("تم تصدير الملف"), download("quotes.csv", toCSV(rows.map((q) => ({
     no: q.data?.quote_no, client: q.data?.client, party: q.answers?.partyName, prep: q.answers?.preparer,
     date: q.data?.issue_date, valid: q.data?.valid_until, total: q.total, status: statusLabel(q.status),
   })), [
     { key: "no", label: "رقم العرض" }, { key: "client", label: "مقدم إلى" }, { key: "party", label: "الجهة" },
     { key: "prep", label: "أعده" }, { key: "date", label: "تاريخ الإصدار" }, { key: "valid", label: "صالح حتى" },
     { key: "total", label: "الإجمالي" }, { key: "status", label: "الحالة" },
-  ]));
+  ])));
 
   return (
     <div>
       <div className="page-head">
         <h1>سجل العروض</h1>
         <div className="row">
-          <input className="in search" placeholder="بحث..." value={qx} onChange={(e) => setQx(e.target.value)} />
+          <input className="in search" type="search" aria-label="بحث في العروض" placeholder="بحث..." value={qx} onChange={(e) => setQx(e.target.value)} />
           <button className="lq sm" onClick={exportCSV}>تصدير Excel</button>
         </div>
       </div>
@@ -37,7 +37,7 @@ export default function Quotes() {
         {STATUSES.map((s) => <button key={s.id} className={`tab${st === s.id ? " on" : ""}`} onClick={() => setSt(s.id)}>{s.label}</button>)}
       </div>
       <div className="card tablewrap">
-        {!rows.length ? <div className="empty">لا توجد عروض</div> : (
+        {!rows.length ? <div className="empty">{qx || st !== "all" ? "لا توجد عروض مطابقة" : "لا توجد عروض بعد"}</div> : (
           <table className="t cards">
             <thead><tr><th>رقم العرض</th><th>مقدم إلى</th><th>أعده</th><th>تاريخ الإصدار</th><th>الإجمالي</th><th>الحالة</th><th>آخر تحديث</th></tr></thead>
             <tbody>

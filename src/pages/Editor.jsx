@@ -6,7 +6,8 @@ import { renderQuote, downloadQuote } from "../pdf/render.js";
 import Preview from "../pdf/Preview.jsx";
 import { quoteTotal, clientTypeLabel } from "../lib/compose.js";
 import { STATUSES, DEFAULT_TERMS, ORDINALS } from "../data/catalog.js";
-import { money, toast, ConfirmButton } from "../ui.jsx";
+import { money, toast, ConfirmButton, Loading } from "../ui.jsx";
+import NotFound from "./NotFound.jsx";
 import { resolveItem, cardTotals } from "../pdf/engine.js";
 
 const BLOCK_TYPES = [
@@ -45,7 +46,7 @@ export default function Editor() {
   const pricing = useSetting("pricing", null);
   const theme = useSetting("theme", null);
   const termsLib = useSetting("terms", DEFAULT_TERMS);
-  const [q, setQ] = useState(null);
+  const [q, setQ] = useState(undefined); // undefined = loading, null = not found
   const [pdf, setPdf] = useState({ blob: null, warnings: [], error: "" });
   const [saved, setSaved] = useState("");
   const [view, setView] = useState("edit");
@@ -70,7 +71,8 @@ export default function Editor() {
     return () => clearTimeout(t);
   }, [q?.data, pricing, theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!q) return <div className="empty">...</div>;
+  if (q === undefined) return <Loading />;
+  if (!q) return <NotFound text="عرض السعر هذا غير موجود، ربما تم حذفه." />;
   if (!q.data) return <div className="empty">هذا العرض لم يكتمل بعد. <Link to={`/new/${id}`}>أكمل المعالج</Link></div>;
 
   const d = q.data;
@@ -79,7 +81,9 @@ export default function Editor() {
     setQ(next);
     setSaved("جار الحفظ...");
     clearTimeout(timer.current);
-    timer.current = setTimeout(async () => { await put("quotes", next, user); setSaved("تم الحفظ"); }, 500);
+    timer.current = setTimeout(async () => {
+      try { await put("quotes", next, user); setSaved("تم الحفظ"); } catch { setSaved("تعذر الحفظ، ستُحفظ التعديلات عند التعديل التالي"); }
+    }, 500);
   }
   const setData = (patch) => save({ ...q, data: { ...d, ...patch } });
   const setPages = (pages) => setData({ pages });
@@ -88,6 +92,7 @@ export default function Editor() {
 
   function setStatus(status) {
     save({ ...q, status, history: [...(q.history || []), { status, at: new Date().toISOString(), by: user.name }] });
+    toast(`تم تغيير الحالة إلى: ${STATUSES.find((s) => s.id === status)?.label || status}`);
   }
 
   async function duplicate() {
@@ -98,6 +103,7 @@ export default function Editor() {
   }
   async function del() {
     await remove("quotes", id);
+    toast("تم حذف العرض");
     nav("/quotes");
   }
 
@@ -112,10 +118,10 @@ export default function Editor() {
           <div className="sub">{d.quote_no} · {money(q.total)} · أعده {a.preparer || q.createdBy}</div>
         </div>
         <div className="row editor-actions">
-          <select className="in auto" value={q.status} onChange={(e) => setStatus(e.target.value)}>
+          <select className="in auto" aria-label="حالة العرض" value={q.status} onChange={(e) => setStatus(e.target.value)}>
             {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
-          <button className="lq primary" onClick={() => downloadQuote(d, pricing || { services: {} }, theme)}>تصدير PDF</button>
+          <button className="lq primary" onClick={() => downloadQuote(d, pricing || { services: {} }, theme).then(() => toast("تم تصدير ملف PDF"), () => toast("تعذر إنشاء ملف PDF. حاول مرة أخرى.", "error"))}>تصدير PDF</button>
           <button className="lq" onClick={duplicate}>نسخ</button>
           <ConfirmButton onConfirm={del}>حذف</ConfirmButton>
         </div>
@@ -146,8 +152,8 @@ export default function Editor() {
             <div className="pagebox" key={pi}>
               <div className="block-head">
                 <b>صفحة {pi + 1}</b>
-                <button className="lq icon sm" title="أعلى" onClick={() => setPages(move(d.pages, pi, -1))}>↑</button>
-                <button className="lq icon sm" title="أسفل" onClick={() => setPages(move(d.pages, pi, 1))}>↓</button>
+                <button className="lq icon sm" title="أعلى" aria-label="نقل الصفحة لأعلى" onClick={() => setPages(move(d.pages, pi, -1))}>↑</button>
+                <button className="lq icon sm" title="أسفل" aria-label="نقل الصفحة لأسفل" onClick={() => setPages(move(d.pages, pi, 1))}>↓</button>
                 {d.pages.length > 1 && <ConfirmButton className="lq sm danger" onConfirm={() => setPages(d.pages.filter((_, i) => i !== pi))}>حذف الصفحة</ConfirmButton>}
               </div>
               <label className="f">عنوان الصفحة<input className="in" value={p.title} onChange={(e) => setPage(pi, { title: e.target.value })} /></label>
@@ -156,8 +162,8 @@ export default function Editor() {
                 <div className="block" key={bi}>
                   <div className="block-head">
                     <b>{blockLabel(b.type)}</b>
-                    <button className="lq icon sm" onClick={() => setPage(pi, { blocks: move(p.blocks, bi, -1) })}>↑</button>
-                    <button className="lq icon sm" onClick={() => setPage(pi, { blocks: move(p.blocks, bi, 1) })}>↓</button>
+                    <button className="lq icon sm" aria-label="نقل القسم لأعلى" onClick={() => setPage(pi, { blocks: move(p.blocks, bi, -1) })}>↑</button>
+                    <button className="lq icon sm" aria-label="نقل القسم لأسفل" onClick={() => setPage(pi, { blocks: move(p.blocks, bi, 1) })}>↓</button>
                     {pi > 0 && <button className="lq sm" title="نقل للصفحة السابقة" onClick={() => {
                       const pages = d.pages.map((x) => ({ ...x, blocks: [...x.blocks] }));
                       const [blk] = pages[pi].blocks.splice(bi, 1);
@@ -177,7 +183,7 @@ export default function Editor() {
               ))}
 
               <div className="row">
-                <select className="in auto" value="" onChange={(e) => e.target.value && setPage(pi, { blocks: [...p.blocks, newBlock(e.target.value, cardsCount + 1)] })}>
+                <select className="in auto" aria-label="إضافة قسم" value="" onChange={(e) => e.target.value && setPage(pi, { blocks: [...p.blocks, newBlock(e.target.value, cardsCount + 1)] })}>
                   <option value="">+ إضافة قسم...</option>
                   {BLOCK_TYPES.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
                 </select>
@@ -185,7 +191,7 @@ export default function Editor() {
             </div>
           ))}
           <button className="lq" onClick={() => setPages([...d.pages, { title: "صفحة جديدة", blocks: [] }])}>+ إضافة صفحة بنفس الأسلوب</button>
-          <div className="sub">{saved}</div>
+          <div className="sub" role="status">{saved}</div>
         </div>
 
         <div className="preview">

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { statusLabel } from "./data/catalog.js";
-import { fmt } from "./pdf/engine.js";
+import { fmt } from "./lib/format.js";
+import { toast, setToastSink } from "./lib/notify.js";
+
+export { toast };
 
 export const money = (n) => `${fmt(n || 0)} ر.س`;
 
@@ -8,17 +11,40 @@ export function StatusBadge({ s }) {
   return <span className={`badge st-${s}`}>{statusLabel(s)}</span>;
 }
 
-let toastSet = null;
-export function toast(msg) { toastSet?.(msg); }
 export function Toaster() {
-  const [msg, setMsg] = useState("");
-  useEffect(() => { toastSet = setMsg; return () => { toastSet = null; }; }, []);
+  const [t, setT] = useState(null);
+  useEffect(() => { setToastSink(setT); return () => setToastSink(null); }, []);
   useEffect(() => {
-    if (!msg) return;
-    const t = setTimeout(() => setMsg(""), 2600);
-    return () => clearTimeout(t);
-  }, [msg]);
-  return msg ? <div className="toast">{msg}</div> : null;
+    if (!t) return;
+    const h = setTimeout(() => setT(null), t.kind === "error" ? 5000 : 2600);
+    return () => clearTimeout(h);
+  }, [t]);
+  return (
+    <div className="toast-zone" role={t?.kind === "error" ? "alert" : "status"} aria-live={t?.kind === "error" ? "assertive" : "polite"}>
+      {t && <div key={t.at} className={`toast${t.kind === "error" ? " error" : ""}`} onClick={() => setT(null)}>{t.msg}</div>}
+    </div>
+  );
+}
+
+export function Footer() {
+  return <footer className="foot" dir="ltr">© {new Date().getFullYear()} PLAN C · Creative Solutions</footer>;
+}
+
+export function Loading() {
+  return <div className="empty" role="status">جار التحميل...</div>;
+}
+
+// phone numbers and emails as tap-to-call / tap-to-mail links
+const telHref = (p) => "tel:" + p.replace(/[^\d+]/g, "");
+export function Contact({ phone, email }) {
+  const phones = String(phone || "").split(/[,،/|\n]+/).map((x) => x.trim()).filter((x) => x.replace(/\D/g, "").length >= 5);
+  if (!phones.length && !email) return "—";
+  return (
+    <span className="contact">
+      {phones.map((p) => <a key={p} href={telHref(p)} dir="ltr">{p}</a>)}
+      {email && <a href={`mailto:${email.trim()}`} dir="ltr">{email.trim()}</a>}
+    </span>
+  );
 }
 
 // CSV helpers (Excel opens UTF-8 CSV with BOM correctly)
@@ -49,7 +75,8 @@ export function parseCSV(text) {
 export function download(name, content, type = "text/csv;charset=utf-8") {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const a = document.createElement("a");
-  a.href = url; a.download = name; a.click();
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
 

@@ -1,19 +1,39 @@
-import { useEffect, useState } from "react";
-import { HashRouter, Routes, Route, NavLink, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { HashRouter, Routes, Route, NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth.jsx";
 import { CLOUD } from "./lib/store.js";
-import { Toaster } from "./ui.jsx";
+import { Toaster, Loading, Footer } from "./ui.jsx";
 import { createDraft } from "./lib/newQuote.js";
 import { THEME, LOGO } from "./theme.js";
 import Login from "./pages/Login.jsx";
 import Home from "./pages/Home.jsx";
-import Wizard from "./pages/Wizard.jsx";
-import Editor from "./pages/Editor.jsx";
-import Quotes from "./pages/Quotes.jsx";
-import Clients from "./pages/Clients.jsx";
-import Companies from "./pages/Companies.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import Admin from "./pages/Admin.jsx";
+import NotFound from "./pages/NotFound.jsx";
+
+// heavier pages (PDF engine, admin tools) load on first visit
+const Wizard = lazy(() => import("./pages/Wizard.jsx"));
+const Editor = lazy(() => import("./pages/Editor.jsx"));
+const Quotes = lazy(() => import("./pages/Quotes.jsx"));
+const Clients = lazy(() => import("./pages/Clients.jsx"));
+const Companies = lazy(() => import("./pages/Companies.jsx"));
+const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
+const Admin = lazy(() => import("./pages/Admin.jsx"));
+
+const TITLES = [
+  ["/new/", "عرض سعر جديد"],
+  ["/quote/", "تعديل عرض السعر"],
+  ["/quotes", "سجل العروض"],
+  ["/clients", "سجل العملاء"],
+  ["/companies", "شركات التسويق والإنتاج"],
+  ["/dashboard", "ملخص العروض"],
+  ["/admin", "لوحة التحكم"],
+];
+const APP_TITLE = "عروض أسعار PLAN C";
+function usePageTitle(pathname) {
+  useEffect(() => {
+    const hit = pathname === "/" ? null : TITLES.find(([p]) => pathname.startsWith(p));
+    document.title = hit ? `${hit[1]} | ${APP_TITLE}` : pathname === "/" ? APP_TITLE : `الصفحة غير موجودة | ${APP_TITLE}`;
+  }, [pathname]);
+}
 
 const Icon = ({ d }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
@@ -31,22 +51,28 @@ function BottomNav({ isAdmin, user, logout }) {
   const loc = useLocation();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [loc.pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const k = (e) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [open]);
   const inMore = ["/companies", "/dashboard", "/admin"].some((p) => loc.pathname.startsWith(p));
   return (
     <>
-      <nav className="bottomnav">
+      <nav className="bottomnav" aria-label="التنقل الرئيسي">
         <NavLink to="/" end><Icon d={I.home} />الرئيسية</NavLink>
         <NavLink to="/quotes"><Icon d={I.quotes} />العروض</NavLink>
-        <button className="plus" onClick={async () => nav(`/new/${(await createDraft(user)).id}`)}>
+        <button className="plus" aria-label="إنشاء عرض سعر جديد" onClick={async () => nav(`/new/${(await createDraft(user)).id}`)}>
           <span className="disc"><Icon d={I.plus} /></span>عرض جديد
         </button>
         <NavLink to="/clients"><Icon d={I.clients} />العملاء</NavLink>
-        <button className={open || inMore ? "on" : ""} onClick={() => setOpen(true)}><Icon d={I.more} />المزيد</button>
+        <button className={open || inMore ? "on" : ""} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}><Icon d={I.more} />المزيد</button>
       </nav>
       {open && (
         <>
           <div className="sheet-backdrop" onClick={() => setOpen(false)} />
-          <div className="sheet" role="dialog">
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="المزيد">
             <div className="grip" />
             <div className="user">{user.name}</div>
             <NavLink to="/companies">شركات التسويق والإنتاج</NavLink>
@@ -64,11 +90,12 @@ function Shell({ children }) {
   const { user, isAdmin, logout } = useAuth();
   const loc = useLocation();
   const focus = loc.pathname.startsWith("/new/");
+  usePageTitle(loc.pathname);
   return (
     <div className={`shell${focus ? " focus" : ""}`}>
       <header className="topbar">
-        <Link to="/"><img className="logo" src={LOGO} alt="PLAN C" /></Link>
-        <nav>
+        <Link to="/" aria-label="الصفحة الرئيسية"><img className="logo" src={LOGO} alt="PLAN C" width="69" height="32" /></Link>
+        <nav aria-label="القائمة">
           <NavLink to="/" end>الرئيسية</NavLink>
           <NavLink to="/quotes">سجل العروض</NavLink>
           <NavLink to="/clients">العملاء</NavLink>
@@ -82,7 +109,7 @@ function Shell({ children }) {
           <button className="lq sm" onClick={logout}>خروج</button>
         </div>
       </header>
-      <main>{children}</main>
+      <main id="main"><Suspense fallback={<Loading />}>{children}</Suspense><Footer /></main>
       <BottomNav isAdmin={isAdmin} user={user} logout={logout} />
       <Toaster />
     </div>
@@ -91,7 +118,7 @@ function Shell({ children }) {
 
 function Gate() {
   const { user, isAdmin } = useAuth();
-  if (user === undefined) return <div className="empty">...</div>;
+  if (user === undefined) return <Loading />;
   if (!user) return <Login />;
   return (
     <Shell>
@@ -104,7 +131,7 @@ function Gate() {
         <Route path="/companies" element={<Companies />} />
         <Route path="/dashboard" element={<Dashboard />} />
         {isAdmin && <Route path="/admin" element={<Admin />} />}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Shell>
   );

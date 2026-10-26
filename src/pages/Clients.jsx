@@ -1,7 +1,7 @@
 import Registry from "./Registry.jsx";
 import { useCollection } from "../lib/store.js";
 import { CLIENT_TYPES, SECTORS } from "../data/catalog.js";
-import { money } from "../ui.jsx";
+import { money, Contact } from "../ui.jsx";
 
 const FIELDS = [
   { key: "name", label: "الاسم" },
@@ -35,7 +35,7 @@ export default function Clients() {
         { key: "type", label: "التصنيف", render: (r) => lbl(CLIENT_TYPES, r.type) },
         { key: "sector", label: "القطاع", render: (r) => lbl(SECTORS, r.sector) },
         { key: "contact", label: "المسؤول" },
-        { key: "phone", label: "الجوال", ltr: true },
+        { key: "phone", label: "التواصل", wide: true, render: (r) => <Contact phone={r.phone} email={r.email} /> },
       ]}
       extra={{ label: "العروض / المعتمد", render: (r) => { const s = stats(r.name); return `${s.n} / ${money(s.won)}`; } }}
     />

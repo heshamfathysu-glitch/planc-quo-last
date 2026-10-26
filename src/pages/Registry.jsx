@@ -24,7 +24,8 @@ export default function Registry({ col, title, fields, columns, extra }) {
   }
 
   async function importCSV(file) {
-    const rowsIn = parseCSV(await file.text());
+    let rowsIn;
+    try { rowsIn = parseCSV(await file.text()); } catch { return toast("تعذرت قراءة الملف. استخدم ملف CSV من نموذج الاستيراد.", "error"); }
     if (rowsIn.length < 2) return toast("الملف فارغ");
     const head = rowsIn[0].map((h) => h.trim());
     const map = head.map((h) => fields.find((f) => f.label === h || f.key === h)?.key);
@@ -37,7 +38,7 @@ export default function Registry({ col, title, fields, columns, extra }) {
       await put(col, { ...(existing || {}), ...o }, user);
       n++;
     }
-    toast(`تم استيراد ${n} سجل`);
+    toast(n ? `تم استيراد ${n} سجل` : "لم يُستورد شيء: تأكد أن الملف فيه عمود الاسم", n ? "ok" : "error");
   }
 
   return (
@@ -45,17 +46,18 @@ export default function Registry({ col, title, fields, columns, extra }) {
       <div className="page-head">
         <h1>{title}</h1>
         <div className="row">
-          <input className="in search" placeholder="بحث..." value={qx} onChange={(e) => setQx(e.target.value)} />
+          <input className="in search" type="search" aria-label="بحث" placeholder="بحث..." value={qx} onChange={(e) => setQx(e.target.value)} />
           <button className="lq sm" onClick={() => fileRef.current.click()}>استيراد</button>
-          <button className="lq sm" onClick={() => download(`${col}.csv`, toCSV(rows, fields))}>تصدير Excel</button>
+          <button className="lq sm" onClick={() => { download(`${col}.csv`, toCSV(rows, fields)); toast("تم تصدير الملف"); }}>تصدير Excel</button>
           <button className="lq sm" onClick={() => download(`${col}-template.csv`, toCSV([], fields))}>نموذج الاستيراد</button>
-          <button className="lq primary sm" onClick={() => setEdit({})}>+ إضافة</button>
+          <button className="lq primary sm" onClick={() => { setEdit({}); window.scrollTo({ top: 0, behavior: "smooth" }); }}>+ إضافة</button>
           <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => e.target.files[0] && importCSV(e.target.files[0]).finally(() => (e.target.value = ""))} />
         </div>
       </div>
 
       {edit && (
         <form className="card grid g2" style={{ marginBottom: 16 }} onSubmit={saveItem}>
+          <h2 style={{ gridColumn: "1 / -1", fontSize: 16 }}>{edit.id ? "تعديل السجل" : "إضافة سجل جديد"}</h2>
           {fields.map((f) => (
             <label key={f.key} className="f" style={f.wide ? { gridColumn: "1 / -1" } : null}>{f.label}
               {f.options ? (
@@ -66,7 +68,7 @@ export default function Registry({ col, title, fields, columns, extra }) {
               ) : f.wide ? (
                 <textarea className="in" value={edit[f.key] || ""} onChange={(e) => setEdit({ ...edit, [f.key]: e.target.value })} />
               ) : (
-                <input className="in" dir={f.ltr ? "ltr" : undefined} value={edit[f.key] || ""} onChange={(e) => setEdit({ ...edit, [f.key]: e.target.value })} required={f.key === "name"} />
+                <input className="in" dir={f.ltr ? "ltr" : undefined} type={f.key === "email" ? "email" : f.key === "phone" ? "tel" : "text"} inputMode={f.key === "phone" ? "tel" : undefined} value={edit[f.key] || ""} onChange={(e) => setEdit({ ...edit, [f.key]: e.target.value })} required={f.key === "name"} />
               )}
             </label>
           ))}
@@ -74,21 +76,21 @@ export default function Registry({ col, title, fields, columns, extra }) {
             <button className="lq primary">حفظ</button>
             <button type="button" className="lq" onClick={() => setEdit(null)}>إلغاء</button>
             <span className="spacer" />
-            {edit.id && <ConfirmButton onConfirm={async () => { await remove(col, edit.id); setEdit(null); }}>حذف</ConfirmButton>}
+            {edit.id && <ConfirmButton onConfirm={async () => { await remove(col, edit.id); setEdit(null); toast("تم الحذف"); }}>حذف</ConfirmButton>}
           </div>
         </form>
       )}
 
       <div className="card tablewrap">
-        {!rows.length ? <div className="empty">لا توجد سجلات بعد</div> : (
+        {!rows.length ? <div className="empty">{qx ? "لا توجد نتائج مطابقة للبحث" : "لا توجد سجلات بعد. اضغط \"+ إضافة\" للبدء."}</div> : (
           <table className="t cards">
             <thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{extra && <th>{extra.label}</th>}<th /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  {columns.map((c, i) => <td key={c.key} className={[i === 0 && "lead", c.ltr && "ltr-cell"].filter(Boolean).join(" ") || undefined} data-label={i ? c.label : undefined}>{c.render ? c.render(r) : r[c.key] || "—"}</td>)}
+                  {columns.map((c, i) => <td key={c.key} className={[i === 0 && "lead", c.ltr && "ltr-cell", c.wide && "wide"].filter(Boolean).join(" ") || undefined} data-label={i ? c.label : undefined}>{c.render ? c.render(r) : r[c.key] || "—"}</td>)}
                   {extra && <td data-label={extra.label}>{extra.render(r)}</td>}
-                  <td className="end"><button className="lq sm" onClick={() => setEdit(r)}>تعديل</button></td>
+                  <td className="end"><button className="lq sm" aria-label={`تعديل ${r.name}`} onClick={() => { setEdit(r); window.scrollTo({ top: 0, behavior: "smooth" }); }}>تعديل</button></td>
                 </tr>
               ))}
             </tbody>

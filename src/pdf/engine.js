@@ -38,12 +38,8 @@ export const CONTENT_LIMIT = 785;
 const VAT_RATE = 15;
 
 
-export function fmt(n) {
-  n = Math.round(Number(n) * 100) / 100;
-  let s = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  s = s.replace(/0+$/, "").replace(/\.$/, "");
-  return (n < 0 ? "-" : "") + s;
-}
+import { fmt } from "../lib/format.js";
+export { fmt };
 
 // python round(): banker's rounding on ties is irrelevant at 2dp for our values
 const r2 = (n) => Math.round(n * 100) / 100;

@@ -4,7 +4,8 @@ import { useAuth } from "../auth.jsx";
 import { get, put, list, useCollection, useSetting } from "../lib/store.js";
 import { CLIENT_TYPES, SECTORS, SERVICES, PRODUCT_RANGES, DURATIONS, VIDEO_TYPES, DEFAULT_TERMS } from "../data/catalog.js";
 import { composeQuote, quoteTotal, addDays, fmtDate, serviceItems } from "../lib/compose.js";
-import { money } from "../ui.jsx";
+import { money, toast, Loading } from "../ui.jsx";
+import NotFound from "./NotFound.jsx";
 import { resolveItem } from "../pdf/engine.js";
 
 // --- one question per page ------------------------------------------------
@@ -16,7 +17,7 @@ function buildSteps(a) {
 }
 
 const Tile = ({ on, onClick, children }) => (
-  <button type="button" className={`tile${on ? " on" : ""}`} onClick={onClick}>{children}</button>
+  <button type="button" className={`tile${on ? " on" : ""}`} aria-pressed={!!on} onClick={onClick}>{children}</button>
 );
 
 function PriceField({ value, onChange, hint }) {
@@ -34,7 +35,8 @@ export default function Wizard() {
   const pricing = useSetting("pricing", null);
   const termsLib = useSetting("terms", null);
   const [clients] = useCollection("clients");
-  const [q, setQ] = useState(null);
+  const [q, setQ] = useState(undefined); // undefined = loading, null = not found
+  const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState("");
   const timer = useRef(null);
 
@@ -50,13 +52,16 @@ export default function Wizard() {
     setQ(next);
     setSaved("جار الحفظ...");
     clearTimeout(timer.current);
-    timer.current = setTimeout(async () => { await put("quotes", next, user); setSaved("تم الحفظ"); }, 350);
+    timer.current = setTimeout(async () => {
+      try { await put("quotes", next, user); setSaved("تم الحفظ"); } catch { setSaved("تعذر الحفظ"); }
+    }, 350);
   }
   const set = (patch) => save({ ...q, answers: { ...a, ...patch } });
   const setSvc = (sid, patch) => set({ [sid]: { ...(a[sid] || {}), ...patch } });
   const go = (d) => save({ ...q, step: Math.max(0, Math.min(steps.length - 1, step + d)) });
 
-  if (!q) return <div className="empty">...</div>;
+  if (q === undefined) return <Loading />;
+  if (!q) return <NotFound text="هذه المسودة غير موجودة، ربما تم حذفها." />;
 
   const valid = (() => {
     switch (key) {
@@ -71,17 +76,23 @@ export default function Wizard() {
   })();
 
   async function finish() {
+    if (busy) return;
+    setBusy(true);
+    try { await build(); } catch { /* the store already showed the error */ } finally { setBusy(false); }
+  }
+  async function build() {
     const code = (clients || []).find((c) => c.name === a.addressedTo)?.code;
     const terms = termsLib?.filter((t) => t.default !== false) || DEFAULT_TERMS;
     const data = composeQuote(a, pricing, { code, terms });
     // keep the client registry up to date
     const all = await list("clients");
     const visible = a.clientType === "third" ? null : a.clientType === "direct" ? a.addressedTo : a.partyName;
-    for (const name of [a.addressedTo, visible].filter(Boolean)) {
+    for (const name of new Set([a.addressedTo, visible].filter(Boolean))) {
       if (!all.some((c) => c.name === name)) await put("clients", { name, type: a.clientType === "company" && name === a.partyName ? "company" : a.clientType, sector: a.sector }, user);
     }
     const next = { ...q, data, step: steps.length - 1, total: quoteTotal(data, pricing), client: data.client, history: [{ status: "draft", at: new Date().toISOString(), by: user.name }] };
     await put("quotes", next, user);
+    toast("تم إنشاء عرض السعر");
     nav(`/quote/${q.id}`);
   }
 
@@ -95,12 +106,12 @@ export default function Wizard() {
 
       {key === "preparer" && (<>
         <h2>اكتب اسمك</h2>
-        <input className="in big" autoFocus value={a.preparer || ""} onChange={(e) => set({ preparer: e.target.value })} placeholder="من يقدم عرض السعر؟" />
+        <input className="in big" aria-label="اسمك" autoFocus value={a.preparer || ""} onChange={(e) => set({ preparer: e.target.value })} placeholder="من يقدم عرض السعر؟" />
       </>)}
 
       {key === "addressedTo" && (<>
         <h2>عرض السعر موجه إلى...؟</h2>
-        <input className="in big" autoFocus list="clients-list" value={a.addressedTo || ""} onChange={(e) => set({ addressedTo: e.target.value })} placeholder="الاسم الذي يظهر في خانة «مقدم إلى»" />
+        <input className="in big" aria-label="موجه إلى" autoFocus list="clients-list" value={a.addressedTo || ""} onChange={(e) => set({ addressedTo: e.target.value })} placeholder="الاسم الذي يظهر في خانة «مقدم إلى»" />
         <datalist id="clients-list">{(clients || []).map((c) => <option key={c.id} value={c.name} />)}</datalist>
       </>)}
 
@@ -172,7 +183,7 @@ export default function Wizard() {
         <button className="lq" onClick={() => (step === 0 ? nav("/") : go(-1))}>رجوع</button>
         <span className="spacer" />
         {key === "review"
-          ? <button className="lq primary" onClick={finish}>إنشاء عرض السعر</button>
+          ? <button className="lq primary" disabled={busy} onClick={finish}>{busy ? "جار الإنشاء..." : "إنشاء عرض السعر"}</button>
           : <button className="lq primary" disabled={!valid} onClick={() => go(1)}>التالي</button>}
       </div>
       <div className="saved">{saved}</div>
@@ -250,9 +261,9 @@ function ServiceStep({ sid, s, setSvc, pricing }) {
         {items.map((it, i) => (
           <div className="block" key={i}>
             <div className="block-head"><b>خدمة {i + 1}</b>{items.length > 1 && <button className="lq sm danger" onClick={() => set({ items: items.filter((_, j) => j !== i) })}>حذف</button>}</div>
-            <input className="in" placeholder="اسم الخدمة" value={it.title || ""} onChange={(e) => upd(i, { title: e.target.value })} />
-            <input className="in" placeholder="وصف مختصر (اختياري)" value={it.desc || ""} onChange={(e) => upd(i, { desc: e.target.value })} />
-            <input className="in" type="number" min="0" placeholder="السعر قبل الضريبة" value={it.price ?? ""} onChange={(e) => upd(i, { price: e.target.value })} />
+            <input className="in" aria-label="اسم الخدمة" placeholder="اسم الخدمة" value={it.title || ""} onChange={(e) => upd(i, { title: e.target.value })} />
+            <input className="in" aria-label="وصف مختصر" placeholder="وصف مختصر (اختياري)" value={it.desc || ""} onChange={(e) => upd(i, { desc: e.target.value })} />
+            <input className="in" type="number" min="0" aria-label="السعر قبل الضريبة" placeholder="السعر قبل الضريبة" value={it.price ?? ""} onChange={(e) => upd(i, { price: e.target.value })} />
           </div>
         ))}
         <button className="lq" onClick={() => set({ items: [...items, {}] })}>+ خدمة أخرى</button>

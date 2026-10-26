@@ -1,4 +1,5 @@
 import Registry from "./Registry.jsx";
+import { Contact } from "../ui.jsx";
 
 const KINDS = [
   { id: "marketing", label: "تسويق" },
@@ -30,8 +31,8 @@ export default function Companies() {
         { key: "name", label: "الشركة" },
         { key: "kind", label: "النوع", render: (r) => KINDS.find((k) => k.id === r.kind)?.label || "—" },
         { key: "contact", label: "المسؤول" },
-        { key: "phone", label: "التواصل", ltr: true },
-        { key: "website", label: "الموقع", ltr: true, render: (r) => r.website ? <a href={/^https?:/.test(r.website) ? r.website : "https://" + r.website} target="_blank" rel="noreferrer">{r.website}</a> : "—" },
+        { key: "phone", label: "التواصل", wide: true, render: (r) => <Contact phone={r.phone} email={r.email} /> },
+        { key: "website", label: "الموقع", ltr: true, render: (r) => r.website ? <a href={/^https?:/.test(r.website) ? r.website : "https://" + r.website} target="_blank" rel="noopener noreferrer" dir="ltr">{r.website}</a> : "—" },
       ]}
     />
   );

@@ -279,12 +279,12 @@ table.t tbody tr:hover td { background: var(--accent-soft); }
 
 /* ---------- tablet ---------- */
 @media (max-width: 1000px) {
-  .editor { grid-template-columns: 1fr; }
+  .editor { grid-template-columns: minmax(0, 1fr); }
   .editor .preview { position: relative; top: 0; height: 75vh; }
 }
 @media (max-width: 860px) {
   .g3, .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .g2 { grid-template-columns: 1fr; }
+  .g2 { grid-template-columns: minmax(0, 1fr); }
   main { padding: 20px 16px 48px; }
 }
 
@@ -414,3 +414,31 @@ table.t tbody tr:hover td { background: var(--accent-soft); }
   .login { margin: 6vh 16px 0; padding: 24px 20px; }
   .toast { bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); }
 }
+
+/* ---------- messages, footer, 404, accessibility ---------- */
+.toast-zone:empty { display: none; }
+.toast { cursor: pointer; animation: toast-in 0.2s ease-out; }
+.toast.error { background: var(--danger); color: #fff; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+.ok-msg { color: var(--ok); font-size: 13px; }
+.foot { text-align: center; color: var(--muted); font-size: 12px; padding: 32px 0 8px; }
+.login + .foot { padding-top: 24px; }
+.contact { display: inline-flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.contact a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.notfound .code { font-size: 72px; line-height: 1; color: var(--accent); opacity: 0.18; }
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--accent); outline-offset: 2px;
+}
+img { max-width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 760px) {
+  table.t.cards .contact { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; }
+  .contact a { display: inline-block; padding: 4px 0; }
+}
+.edit-col > *, .pagebox > *, .block > *, .card > * { min-width: 0; }
+td, .block, .card { overflow-wrap: break-word; }
+@media (max-width: 760px) { table.t.cards td.wide { grid-column: 1 / -1; } }
+.in, select.in, textarea.in { min-width: 0; max-width: 100%; }
+.block div, .pagebox div { min-width: 0; }

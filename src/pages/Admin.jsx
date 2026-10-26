@@ -4,6 +4,7 @@ import { createUser } from "../lib/firebase.js";
 import { DEFAULT_TERMS } from "../data/catalog.js";
 import { MASTER_THEME } from "../pdf/engine.js";
 import { toast, download } from "../ui.jsx";
+import { errorText } from "../lib/notify.js";
 import { useAuth } from "../auth.jsx";
 
 const TABS = [
@@ -44,7 +45,7 @@ function Pricing() {
       await setSetting("pricing", j);
       setDraft(null);
       toast("تم تحميل قائمة الأسعار");
-    } catch { toast("الملف غير صالح"); }
+    } catch (e) { if (!e?.notified) toast("الملف غير صالح. يجب أن يكون pricing.json فيه قائمة الخدمات.", "error"); }
   }
   const setTier = (k, i, price) => setDraft({ ...p, services: { ...p.services, [k]: { ...p.services[k], tiers: p.services[k].tiers.map((t, j) => (j === i ? { ...t, price: Number(price) || 0 } : t)) } } });
 
@@ -86,7 +87,7 @@ function Terms() {
           <div className="row">
             <input className="in auto" style={{ flex: 1 }} value={x.title} onChange={(e) => upd(i, { title: e.target.value })} />
             <label className="row sub"><input type="checkbox" checked={x.default !== false} onChange={(e) => upd(i, { default: e.target.checked })} /> تلقائي</label>
-            <button className="lq icon sm danger" onClick={() => setItems(t.filter((_, j) => j !== i))}>×</button>
+            <button className="lq icon sm danger" aria-label="حذف البند" onClick={() => setItems(t.filter((_, j) => j !== i))}>×</button>
           </div>
           <textarea className="in" value={x.text} onChange={(e) => upd(i, { text: e.target.value })} />
         </div>
@@ -142,8 +143,8 @@ function Theme() {
       <div className="row">
         <span className="sub">لوحة الألوان المعتمدة:</span>
         <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} />
-        <button className="lq sm" onClick={() => setSetting("palette", [...new Set([...palette, newColor])])}>+ إضافة لون</button>
-        {palette.map((c) => <button key={c} className="badge" style={{ border: 0, cursor: "pointer", background: c }} title="حذف" onClick={() => setSetting("palette", palette.filter((x) => x !== c))}>{c} ×</button>)}
+        <button className="lq sm" onClick={() => setSetting("palette", [...new Set([...palette, newColor])]).then(() => toast("تمت إضافة اللون"))}>+ إضافة لون</button>
+        {palette.map((c) => <button key={c} className="badge" style={{ border: 0, cursor: "pointer", background: c }} title="حذف" aria-label={`حذف اللون ${c}`} onClick={() => setSetting("palette", palette.filter((x) => x !== c)).then(() => toast("تم حذف اللون"))}>{c} ×</button>)}
       </div>
       <div className="row">
         {th && <button className="lq primary" onClick={async () => { await setSetting("theme", th); setTh(null); toast("تم الحفظ"); }}>حفظ</button>}
@@ -162,15 +163,15 @@ function Users() {
   async function add(e) {
     e.preventDefault(); setErr("");
     try { await createUser(f); setF({ role: "user" }); toast("تمت إضافة المستخدم"); }
-    catch (x) { setErr(x.code === "auth/email-already-in-use" ? "البريد مستخدم بالفعل" : x.code === "auth/weak-password" ? "كلمة المرور قصيرة (6 أحرف على الأقل)" : String(x.message)); }
+    catch (x) { setErr(x.code === "auth/email-already-in-use" ? "البريد مستخدم بالفعل." : x.code === "auth/weak-password" ? "كلمة المرور قصيرة (6 أحرف على الأقل)." : x.code === "auth/invalid-email" ? "صيغة البريد غير صحيحة." : errorText(x)); }
   }
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <form className="card grid g4" onSubmit={add}>
-        <input className="in" placeholder="الاسم" value={f.name || ""} onChange={(e) => setF({ ...f, name: e.target.value })} required />
-        <input className="in" type="email" dir="ltr" placeholder="البريد" value={f.email || ""} onChange={(e) => setF({ ...f, email: e.target.value })} required />
-        <input className="in" type="text" dir="ltr" placeholder="كلمة مرور مؤقتة" value={f.password || ""} onChange={(e) => setF({ ...f, password: e.target.value })} required />
-        <select className="in" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}><option value="user">مستخدم</option><option value="admin">أدمن</option></select>
+        <input className="in" aria-label="الاسم" placeholder="الاسم" value={f.name || ""} onChange={(e) => setF({ ...f, name: e.target.value })} required />
+        <input className="in" type="email" dir="ltr" aria-label="البريد" autoComplete="off" placeholder="البريد" value={f.email || ""} onChange={(e) => setF({ ...f, email: e.target.value })} required />
+        <input className="in" type="text" dir="ltr" aria-label="كلمة مرور مؤقتة" autoComplete="new-password" placeholder="كلمة مرور مؤقتة" value={f.password || ""} onChange={(e) => setF({ ...f, password: e.target.value })} required />
+        <select className="in" aria-label="الصلاحية" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}><option value="user">مستخدم</option><option value="admin">أدمن</option></select>
         <button className="lq primary">إضافة مستخدم</button>
         {err && <div className="err">{err}</div>}
       </form>
@@ -180,9 +181,9 @@ function Users() {
           <tbody>
             {(users || []).map((u) => (
               <tr key={u.id}>
-                <td className="lead">{u.name}</td><td className="ltr-cell sub">{u.email}</td>
+                <td className="lead">{u.name}</td><td className="ltr-cell sub"><a href={`mailto:${u.email}`}>{u.email}</a></td>
                 <td className="end">
-                  <select className="in auto" value={u.role} disabled={u.id === user.uid} onChange={(e) => put("users", { ...u, role: e.target.value }, user)}>
+                  <select className="in auto" value={u.role} disabled={u.id === user.uid} aria-label={`صلاحية ${u.name}`} onChange={(e) => put("users", { ...u, role: e.target.value }, user).then(() => toast("تم تحديث الصلاحية"))}>
                     <option value="user">مستخدم</option><option value="admin">أدمن</option>
                   </select>
                 </td>
@@ -203,9 +204,11 @@ function Backup() {
     const out = {};
     for (const c of COLS) out[c] = await list(c);
     download(`planc-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(out, null, 1), "application/json");
+    toast("تم تنزيل النسخة الاحتياطية");
   }
   async function imp(file) {
-    const j = JSON.parse(await file.text());
+    let j;
+    try { j = JSON.parse(await file.text()); } catch { return toast("الملف غير صالح. اختر ملف نسخة احتياطية بصيغة JSON.", "error"); }
     let n = 0;
     for (const c of COLS) for (const o of j[c] || []) { await put(c, o, user); n++; }
     toast(`تمت استعادة ${n} سجل`);

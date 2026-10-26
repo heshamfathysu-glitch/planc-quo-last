@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { firebaseConfig } from "../firebaseConfig.js";
 import * as fb from "./firebase.js";
+import { fail } from "./notify.js";
 
 export const CLOUD = !!firebaseConfig;
 
@@ -48,9 +49,9 @@ export async function put(col, obj, user) {
   const o = { ...obj, id: obj.id || newId(), updatedAt: now() };
   if (!o.createdAt) { o.createdAt = o.updatedAt; o.createdBy = user?.name || o.createdBy || ""; }
   o.updatedBy = user?.name || "";
-  return backend.put(col, o);
+  return backend.put(col, o).catch(fail);
 }
-export async function remove(col, id) { return backend.remove(col, id); }
+export async function remove(col, id) { return backend.remove(col, id).catch(fail); }
 
 // settings live in one collection keyed by name
 export async function getSetting(name, fallback) {
@@ -58,7 +59,7 @@ export async function getSetting(name, fallback) {
   return s ? s.value : fallback;
 }
 export async function setSetting(name, value) {
-  return backend.put("settings", { id: name, value, updatedAt: now() });
+  return backend.put("settings", { id: name, value, updatedAt: now() }).catch(fail);
 }
 
 // live list for React

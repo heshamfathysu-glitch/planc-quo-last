@@ -3,6 +3,8 @@ import { useAuth } from "../auth.jsx";
 import { CLOUD } from "../lib/store.js";
 import { resetPassword } from "../lib/firebase.js";
 import { LOGO } from "../theme.js";
+import { Footer } from "../ui.jsx";
+import { errorText } from "../lib/notify.js";
 
 export default function Login() {
   const { login } = useAuth();
@@ -16,13 +18,19 @@ export default function Login() {
     e.preventDefault();
     setErr(""); setBusy(true);
     try { await login(email.trim(), password, name.trim()); }
-    catch { setErr("البريد أو كلمة المرور غير صحيحة"); }
+    catch (x) {
+      const c = String(x?.code || "");
+      setErr(c.includes("too-many-requests") ? "محاولات كثيرة، انتظر قليلا ثم حاول مرة أخرى."
+        : c.includes("network") ? errorText(x)
+        : "البريد أو كلمة المرور غير صحيحة.");
+    }
     finally { setBusy(false); }
   }
 
   return (
+    <>
     <form className="login card" onSubmit={submit}>
-      <img src={LOGO} alt="PLAN C" />
+      <img src={LOGO} alt="PLAN C" width="129" height="60" />
       <h1>عروض أسعار PLAN C</h1>
       {!CLOUD && (
         <>
@@ -30,15 +38,20 @@ export default function Login() {
           <label className="f">الاسم<input className="in" value={name} onChange={(e) => setName(e.target.value)} required /></label>
         </>
       )}
-      <label className="f">البريد الإلكتروني<input className="in" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required={CLOUD} /></label>
-      {CLOUD && <label className="f">كلمة المرور<input className="in" type="password" dir="ltr" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>}
-      {err && <div className="err">{err}</div>}
-      <button className="lq primary" disabled={busy}>دخول</button>
+      <label className="f">البريد الإلكتروني<input className="in" type="email" dir="ltr" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} required={CLOUD} /></label>
+      {CLOUD && <label className="f">كلمة المرور<input className="in" type="password" dir="ltr" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>}
+      {err && <div className={err.startsWith("أرسلنا") ? "ok-msg" : "err"} role="alert">{err}</div>}
+      <button className="lq primary" disabled={busy}>{busy ? "جار الدخول..." : "دخول"}</button>
       {CLOUD && (
-        <button type="button" className="lq sm" onClick={() => email && resetPassword(email).then(() => setErr("أرسلنا رابط تعيين كلمة المرور إلى بريدك"))}>
+        <button type="button" className="lq sm" onClick={() => {
+          if (!email.trim()) return setErr("اكتب بريدك أولا ثم اضغط نسيت كلمة المرور.");
+          resetPassword(email.trim()).then(() => setErr("أرسلنا رابط تعيين كلمة المرور إلى بريدك.")).catch((x) => setErr(errorText(x)));
+        }}>
           نسيت كلمة المرور
         </button>
       )}
     </form>
+    <Footer />
+    </>
   );
 }
