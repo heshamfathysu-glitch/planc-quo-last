@@ -569,3 +569,32 @@ body { background: transparent; }
   :root[data-theme="glass"] { --surface: #15151b; --btn: #15151b; --field: #101015; --glass-bar: #101015; }
 }
 :root[data-theme="glass"] :is(a, button, select, input, textarea, [tabindex]):focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); }
+
+/* ---------- home: one button ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.home-start { min-height: 62vh; align-content: center; padding: 0; }
+/* light colour layers from the brand palette (Accent #E11D2E, Hero #1B1845,
+   Soft #EEEEFB, Success #4ADE80) bloom inside the glass while it is pressed */
+.start-btn { position: relative; overflow: hidden; isolation: isolate; }
+.start-btn::before, .start-btn::after {
+  content: ""; position: absolute; inset: -60% -20%; z-index: -1; pointer-events: none;
+  opacity: 0; transform: scale(0.6) rotate(-10deg);
+  transition: opacity 0.25s ease, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.start-btn::before {
+  background:
+    radial-gradient(closest-side at 22% 55%, rgba(225, 29, 46, 0.42), transparent),
+    radial-gradient(closest-side at 78% 45%, rgba(74, 222, 128, 0.28), transparent);
+}
+.start-btn::after {
+  transform: scale(0.6) rotate(10deg);
+  background:
+    radial-gradient(closest-side at 50% 80%, rgba(238, 238, 251, 0.34), transparent),
+    radial-gradient(closest-side at 50% 15%, rgba(27, 24, 69, 0.55), transparent);
+}
+.start-btn:active::before, .start-btn:active::after,
+.start-btn.pressed::before, .start-btn.pressed::after { opacity: 1; transform: none; }
+.start-btn.pressed { border-color: rgba(238, 238, 251, 0.75); }
+@media (max-width: 760px) {
+  .home-start { min-height: 58vh; }
+}
