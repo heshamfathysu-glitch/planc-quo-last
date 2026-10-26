@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useSetting, setSetting, list, put, useCollection, CLOUD } from "../lib/store.js";
+import { useSetting, setSetting, list, put, useCollection, CLOUD, DEMO } from "../lib/store.js";
 import { createUser } from "../lib/firebase.js";
 import { DEFAULT_TERMS } from "../data/catalog.js";
 import { MASTER_THEME } from "../pdf/engine.js";
@@ -159,7 +159,7 @@ function Users() {
   const [users] = useCollection("users");
   const [f, setF] = useState({ role: "user" });
   const [err, setErr] = useState("");
-  if (!CLOUD) return <div className="card sub">إدارة المستخدمين تعمل بعد ربط Firebase. حاليا الدخول تجريبي على هذا المتصفح فقط.</div>;
+  if (!CLOUD) return <div className="card sub">{DEMO ? "إدارة المستخدمين غير متاحة في الدخول التجريبي. ادخل بحسابك لإدارتهم." : "إدارة المستخدمين تعمل بعد ربط Firebase. حاليا الدخول تجريبي على هذا المتصفح فقط."}</div>;
   async function add(e) {
     e.preventDefault(); setErr("");
     try { await createUser(f); setF({ role: "user" }); toast("تمت إضافة المستخدم"); }

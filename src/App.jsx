@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { HashRouter, Routes, Route, NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth.jsx";
-import { CLOUD } from "./lib/store.js";
+import { CLOUD, DEMO } from "./lib/store.js";
 import { Toaster, Loading, Footer } from "./ui.jsx";
 import { createDraft } from "./lib/newQuote.js";
 import { THEME, LOGO } from "./theme.js";
@@ -51,7 +51,9 @@ function BottomNav({ isAdmin, user, logout }) {
   const nav = useNavigate();
   const loc = useLocation();
   const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [loc.pathname]);
+  // close right away: the next page may still be loading in the background
+  const close = () => setOpen(false);
+  useEffect(close, [loc.pathname]);
   useEffect(() => {
     if (!open) return;
     const k = (e) => e.key === "Escape" && setOpen(false);
@@ -76,10 +78,10 @@ function BottomNav({ isAdmin, user, logout }) {
           <div className="sheet" role="dialog" aria-modal="true" aria-label="المزيد">
             <div className="grip" />
             <div className="user">{user.name}</div>
-            <NavLink to="/companies">شركات التسويق والإنتاج</NavLink>
-            <NavLink to="/dashboard">الملخص</NavLink>
-            {isAdmin && <NavLink to="/admin">لوحة التحكم</NavLink>}
-            <button className="item danger" onClick={logout}>تسجيل الخروج</button>
+            <NavLink to="/companies" onClick={close}>شركات التسويق والإنتاج</NavLink>
+            <NavLink to="/dashboard" onClick={close}>الملخص</NavLink>
+            {isAdmin && <NavLink to="/admin" onClick={close}>لوحة التحكم</NavLink>}
+            <button className="item danger" onClick={logout}>{DEMO ? "إنهاء التجربة" : "تسجيل الخروج"}</button>
           </div>
         </>
       )}
@@ -105,9 +107,9 @@ function Shell({ children }) {
           {isAdmin && <NavLink to="/admin">لوحة التحكم</NavLink>}
         </nav>
         <div className="who">
-          {!CLOUD && <span className="badge st-expired">وضع تجريبي</span>}
+          {!CLOUD && <span className="badge st-expired">{DEMO ? "دخول تجريبي" : "وضع تجريبي"}</span>}
           <span className="name">{user.name}</span>
-          <button className="lq sm" onClick={logout}>خروج</button>
+          <button className="lq sm" onClick={logout}>{DEMO ? "إنهاء التجربة" : "خروج"}</button>
         </div>
       </header>
       <main id="main"><Suspense fallback={<Loading />}>{children}</Suspense><Footer /></main>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../auth.jsx";
 import { CLOUD } from "../lib/store.js";
+import { enterDemo } from "../lib/demo.js";
 import { resetPassword } from "../lib/firebase.js";
 import { LOGO } from "../theme.js";
 import { Footer } from "../ui.jsx";
@@ -49,6 +50,13 @@ export default function Login() {
         }}>
           نسيت كلمة المرور
         </button>
+      )}
+      {CLOUD && (
+        <div className="demo-entry">
+          <span className="sub">أو جرّب الموقع بدون حساب</span>
+          <button type="button" className="lq" onClick={enterDemo}>دخول تجريبي مباشر</button>
+          <span className="sub small">البيانات في التجربة تُحفظ على هذا الجهاز فقط ولا تصل لقاعدة البيانات.</span>
+        </div>
       )}
     </form>
     <Footer />

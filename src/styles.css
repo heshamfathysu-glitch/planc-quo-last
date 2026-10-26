@@ -467,3 +467,5 @@ body { background: transparent; }
   /* the sticky wizard bar has its own white surface */
   .wiz .nav .lq.primary { box-shadow: none; }
 }
+.demo-entry { display: grid; gap: 8px; text-align: center; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
+.demo-entry .small { font-size: 12px; }

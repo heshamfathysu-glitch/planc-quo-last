@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { CLOUD } from "./lib/store.js";
 import * as fb from "./lib/firebase.js";
+import { DEMO, leaveDemo } from "./lib/demo.js";
 
 const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
     },
     async logout() {
       if (CLOUD) return fb.logout();
+      if (DEMO) return leaveDemo();
       localStorage.removeItem(LOCAL_KEY);
       setUser(null);
     },
