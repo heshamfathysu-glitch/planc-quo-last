@@ -56,6 +56,37 @@
   --preview-bg: #2a2866;
   color-scheme: dark;
 }
+/* Frosted glass over the darkened NEAT background (the default, see theme.js).
+   Measured from the reference mockup: about 5% white fill, a 1px edge at about
+   35% white, a soft inner glow, heavy backdrop blur, white text. */
+:root[data-theme="glass"] {
+  --bg: #050508;
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-2: rgba(255, 255, 255, 0.09);
+  --ink: #ffffff;
+  --muted: rgba(255, 255, 255, 0.66);
+  --line: rgba(255, 255, 255, 0.16);
+  --accent: #ffffff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.1);
+  --field: rgba(255, 255, 255, 0.04);
+  --btn: rgba(255, 255, 255, 0.05);
+  --btn-ink: #ffffff;
+  --btn-hover: rgba(255, 255, 255, 0.12);
+  --bar: rgba(255, 255, 255, 0.25);
+  --danger: #ff8a80;
+  --ok: #7ee2b8;
+  --warn: #ffd27a;
+  --shadow: none;
+  --preview-bg: rgba(255, 255, 255, 0.03);
+  --glass-edge: rgba(255, 255, 255, 0.35);
+  --glass-edge-strong: rgba(255, 255, 255, 0.6);
+  --glass-fill-strong: rgba(255, 255, 255, 0.16);
+  --glass-glow: inset 0 0 12px rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(24px) saturate(140%);
+  --glass-bar: rgba(12, 12, 16, 0.78);
+  color-scheme: dark;
+}
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body, #root { min-height: 100%; }
@@ -447,7 +478,16 @@ td, .block, .card { overflow-wrap: break-word; }
 html { background: #190f32; }
 body { background: transparent; }
 .neat-bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
-.topbar, .bottomnav {
+/* dark layer at 90% over the whole background (NeatBackground.jsx). The NEAT
+   free-licence mark in the canvas's bottom-right corner stays uncovered. */
+.neat-shade {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: rgba(0, 0, 0, 0.9);
+  -webkit-mask: linear-gradient(#000 0 0) right bottom / 64px 32px no-repeat, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) right bottom / 64px 32px no-repeat exclude, linear-gradient(#000 0 0);
+}
+:root[data-theme="light"] .topbar, :root[data-theme="light"] .bottomnav {
   background: rgba(255, 255, 255, 0.85);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
@@ -469,3 +509,71 @@ body { background: transparent; }
 }
 .demo-entry { display: grid; gap: 8px; text-align: center; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
 .demo-entry .small { font-size: 12px; }
+
+/* ---------- frosted glass controls and panels (theme "glass") ---------- */
+:root[data-theme="glass"] .lq,
+:root[data-theme="glass"] .tab,
+:root[data-theme="glass"] .tile {
+  border-color: var(--glass-edge);
+  box-shadow: var(--glass-glow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+/* the main action stays glass, just a little denser and brighter-edged */
+:root[data-theme="glass"] .lq.primary,
+:root[data-theme="glass"] .tab.on,
+:root[data-theme="glass"] .tile.on,
+:root[data-theme="glass"] .bottomnav .plus span.disc {
+  background: var(--glass-fill-strong);
+  border: 1px solid var(--glass-edge-strong);
+  color: #fff;
+  box-shadow: var(--glass-glow), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+:root[data-theme="glass"] .lq.primary:hover { filter: none; background: rgba(255, 255, 255, 0.22); }
+:root[data-theme="glass"] .tab:hover, :root[data-theme="glass"] .tile:hover { border-color: var(--glass-edge-strong); }
+:root[data-theme="glass"] .card {
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: var(--glass-glow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+/* inside a panel the panel already blurs; skipping it here keeps phones smooth */
+:root[data-theme="glass"] :is(.card, .block, .topbar, table) :is(.lq, .tab, .tile) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-theme="glass"] .topbar,
+:root[data-theme="glass"] .bottomnav,
+:root[data-theme="glass"] .sheet {
+  background: var(--glass-bar);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+:root[data-theme="glass"] .sheet { background: rgba(16, 16, 22, 0.82); border-top: 1px solid var(--glass-edge); }
+:root[data-theme="glass"] .sheet-backdrop { background: rgba(0, 0, 0, 0.5); }
+:root[data-theme="glass"] .bottomnav .plus span.disc { -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+:root[data-theme="glass"] .in:focus { border-color: var(--glass-edge-strong); }
+:root[data-theme="glass"] select.in option { background: #16161d; color: #fff; }
+:root[data-theme="glass"] .st-sent { color: #9fc7ff; background: rgba(80, 140, 255, 0.18); }
+:root[data-theme="glass"] .pagebox { background: transparent; }
+:root[data-theme="glass"] .toast {
+  background: rgba(22, 22, 30, 0.85); color: #fff;
+  border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+}
+:root[data-theme="glass"] .toast.error { background: rgba(179, 38, 30, 0.9); border-color: rgba(255, 138, 128, 0.6); }
+@media (max-width: 760px) {
+  /* the sticky wizard bar sits over scrolling content, so it gets the bar glass */
+  :root[data-theme="glass"] .wiz .nav {
+    background: var(--glass-bar);
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme="glass"] { --surface: #15151b; --btn: #15151b; --field: #101015; --glass-bar: #101015; }
+}
+:root[data-theme="glass"] :is(a, button, select, input, textarea, [tabindex]):focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); }

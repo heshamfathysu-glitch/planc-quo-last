@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { NEAT_CONFIG } from "./data/neatConfig.js";
 
-// Full-screen animated gradient behind the whole app. The library (WebGL)
-// loads after the page so it never delays the first paint.
+// Full-screen animated gradient behind the whole app, under a 90% dark layer.
+// The library (WebGL) loads after the page so it never delays the first paint.
 export default function NeatBackground() {
   const ref = useRef(null);
   useEffect(() => {
@@ -23,5 +23,10 @@ export default function NeatBackground() {
       gradient?.destroy();
     };
   }, []);
-  return <canvas id="gradient" ref={ref} className="neat-bg" aria-hidden="true" />;
+  return (
+    <>
+      <canvas id="gradient" ref={ref} className="neat-bg" aria-hidden="true" />
+      <div className="neat-shade" aria-hidden="true" />
+    </>
+  );
 }
