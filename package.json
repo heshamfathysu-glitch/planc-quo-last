@@ -11,6 +11,7 @@
     "test": "vite-node test/ar.test.mjs && vite-node test/engine.test.mjs"
   },
   "dependencies": {
+    "@firecms/neat": "^1.1.0",
     "@ibm/plex-sans-arabic": "^1.1.0",
     "bidi-js": "^1.1.0",
     "firebase": "^13.1.0",

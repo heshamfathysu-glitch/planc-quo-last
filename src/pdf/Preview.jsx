@@ -23,7 +23,9 @@ export default function Preview({ blob }) {
     (async () => {
       const lib = await pdfjs();
       const doc = await lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
-      const width = box.current.clientWidth - 24;
+      if (cancelled || !box.current) return;
+      // the preview can be hidden (phone edit view): render at screen width then
+      const width = Math.max(240, (box.current.clientWidth || Math.min(window.innerWidth, 900)) - 24);
       const canvases = [];
       for (let n = 1; n <= doc.numPages; n++) {
         const page = await doc.getPage(n);
@@ -32,11 +34,12 @@ export default function Preview({ blob }) {
         const vp = page.getViewport({ scale: (width / base.width) * ratio });
         const c = document.createElement("canvas");
         c.width = vp.width; c.height = vp.height;
-        c.style.width = `${width}px`;
+        c.style.width = "100%";
+        c.style.maxWidth = `${width}px`;
         await page.render({ canvas: c, canvasContext: c.getContext("2d"), viewport: vp }).promise;
         canvases.push(c);
       }
-      if (cancelled) return;
+      if (cancelled || !box.current) return;
       box.current.replaceChildren(...canvases);
     })().catch((e) => console.error(e));
     return () => { cancelled = true; };

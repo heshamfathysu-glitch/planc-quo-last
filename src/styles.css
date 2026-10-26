@@ -443,31 +443,27 @@ td, .block, .card { overflow-wrap: break-word; }
 .in, select.in, textarea.in { min-width: 0; max-width: 100%; }
 .block div, .pagebox div { min-width: 0; }
 
-/* ---------- photo background (light theme) ----------
-   a fixed layer instead of background-attachment: fixed, which iOS ignores;
-   a soft white wash keeps text that sits directly on it readable */
-:root:not([data-theme="navy"]) body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)),
-    url("./assets/bg.jpg") center / cover no-repeat,
-    var(--bg);
-}
-:root:not([data-theme="navy"]) body { background: transparent; }
-:root:not([data-theme="navy"]) .topbar,
-:root:not([data-theme="navy"]) .bottomnav {
-  background: rgba(255, 255, 255, 0.82);
+/* ---------- animated NEAT background ---------- */
+html { background: #190f32; }
+body { background: transparent; }
+.neat-bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
+.topbar, .bottomnav {
+  background: rgba(255, 255, 255, 0.85);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
-:root:not([data-theme="navy"]) .hero h1,
-:root:not([data-theme="navy"]) .page-head h1,
-:root:not([data-theme="navy"]) .hero .sub,
-:root:not([data-theme="navy"]) .foot,
-:root:not([data-theme="navy"]) .wiz h2,
-:root:not([data-theme="navy"]) .wiz .step-n {
-  text-shadow: 0 0 14px rgba(255, 255, 255, 0.9), 0 0 2px rgba(255, 255, 255, 0.7);
+/* text that sits straight on the animated background */
+:root { --on-bg: #fff; --on-bg-muted: rgba(255, 255, 255, 0.84); --on-bg-shadow: 0 1px 14px rgba(12, 6, 40, 0.6); }
+.hero h1, .page-head h1, .wiz h2 { color: var(--on-bg); text-shadow: var(--on-bg-shadow); }
+.hero .sub, .page-head .sub, .foot, .wiz .step-n, .wiz .saved, main > .empty,
+.edit-col > .sub, .wiz label.f, .wiz .sub {
+  color: var(--on-bg-muted); text-shadow: var(--on-bg-shadow);
+}
+.wiz .card label.f, .wiz .block label.f, .wiz .card .sub, .wiz .block .sub, .wiz .tile .sub { color: var(--muted); text-shadow: none; }
+.hero .warn { color: #ffd48a; text-shadow: var(--on-bg-shadow); }
+.hero a:not(.lq), main > .empty a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.hero .lq.primary, .wiz .nav .lq.primary { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28), 0 8px 24px rgba(0, 0, 0, 0.25); }
+@media (max-width: 760px) {
+  /* the sticky wizard bar has its own white surface */
+  .wiz .nav .lq.primary { box-shadow: none; }
 }

@@ -5,6 +5,7 @@ import { CLOUD } from "./lib/store.js";
 import { Toaster, Loading, Footer } from "./ui.jsx";
 import { createDraft } from "./lib/newQuote.js";
 import { THEME, LOGO } from "./theme.js";
+import NeatBackground from "./NeatBackground.jsx";
 import Login from "./pages/Login.jsx";
 import Home from "./pages/Home.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -141,6 +142,7 @@ export default function App() {
   useEffect(() => { document.documentElement.dataset.theme = THEME; }, []);
   return (
     <AuthProvider>
+      <NeatBackground />
       <HashRouter>
         <Gate />
       </HashRouter>
