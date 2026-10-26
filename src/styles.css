@@ -598,3 +598,17 @@ body { background: transparent; }
 @media (max-width: 760px) {
   .home-start { min-height: 58vh; }
 }
+
+/* ---------- press feedback (src/lib/press.js) ----------
+   a short colour wash on every press: Accent, then Success, then Soft */
+[data-press="0"] { --press: 225, 29, 46; }
+[data-press="1"] { --press: 74, 222, 128; }
+[data-press="2"] { --press: 238, 238, 251; }
+[data-press] { animation: press-flash 0.55s ease-out; }
+@keyframes press-flash {
+  0%, 30% { box-shadow: inset 0 0 0 100vmax rgba(var(--press), 0.5), 0 0 0 2px rgba(var(--press), 0.9); }
+  100% { box-shadow: inset 0 0 0 100vmax rgba(var(--press), 0), 0 0 0 2px rgba(var(--press), 0); }
+}
+@media (max-width: 760px) {
+  .bottomnav a, .bottomnav button:not(.plus) { border-radius: 16px; }
+}
