@@ -6,7 +6,6 @@ import { Toaster, Loading, Footer } from "./ui.jsx";
 import { createDraft } from "./lib/newQuote.js";
 import { THEME, LOGO, BACKGROUND } from "./theme.js";
 import NeatBackground from "./NeatBackground.jsx";
-import Intro from "./Intro.jsx";
 import Login from "./pages/Login.jsx";
 import Home from "./pages/Home.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -145,7 +144,6 @@ export default function App() {
   useEffect(() => { document.documentElement.dataset.theme = THEME; }, []);
   return (
     <AuthProvider>
-      <Intro />
       {BACKGROUND === "neat" ? <NeatBackground /> : (
         <div className="photo-bg" aria-hidden="true"><i className="bg-blue" /><i className="bg-orange" /><i className="bg-green" /></div>
       )}

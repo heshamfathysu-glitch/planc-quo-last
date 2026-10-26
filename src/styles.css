@@ -624,13 +624,3 @@ body { background: transparent; }
 @media (max-width: 760px) {
   .bottomnav a, .bottomnav button:not(.plus) { border-radius: 16px; }
 }
-
-/* ---------- opening video (Intro.jsx) ---------- */
-.intro { position: fixed; inset: 0; z-index: 100; background: #000; transition: opacity 0.5s ease; }
-.intro.leaving { opacity: 0; pointer-events: none; }
-.intro video { width: 100%; height: 100%; object-fit: cover; display: block; }
-@media (orientation: landscape) {
-  /* the video is portrait: show it whole on wide screens */
-  .intro video { object-fit: contain; }
-}
-.intro-skip { position: absolute; bottom: calc(24px + env(safe-area-inset-bottom)); inset-inline-end: 20px; }
