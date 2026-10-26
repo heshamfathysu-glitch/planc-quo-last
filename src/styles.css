@@ -442,3 +442,32 @@ td, .block, .card { overflow-wrap: break-word; }
 @media (max-width: 760px) { table.t.cards td.wide { grid-column: 1 / -1; } }
 .in, select.in, textarea.in { min-width: 0; max-width: 100%; }
 .block div, .pagebox div { min-width: 0; }
+
+/* ---------- photo background (light theme) ----------
+   a fixed layer instead of background-attachment: fixed, which iOS ignores;
+   a soft white wash keeps text that sits directly on it readable */
+:root:not([data-theme="navy"]) body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)),
+    url("./assets/bg.jpg") center / cover no-repeat,
+    var(--bg);
+}
+:root:not([data-theme="navy"]) body { background: transparent; }
+:root:not([data-theme="navy"]) .topbar,
+:root:not([data-theme="navy"]) .bottomnav {
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+:root:not([data-theme="navy"]) .hero h1,
+:root:not([data-theme="navy"]) .page-head h1,
+:root:not([data-theme="navy"]) .hero .sub,
+:root:not([data-theme="navy"]) .foot,
+:root:not([data-theme="navy"]) .wiz h2,
+:root:not([data-theme="navy"]) .wiz .step-n {
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.9), 0 0 2px rgba(255, 255, 255, 0.7);
+}
