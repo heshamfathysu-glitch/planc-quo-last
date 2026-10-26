@@ -472,14 +472,13 @@ td, .block, .card { overflow-wrap: break-word; }
 .block div, .pagebox div { min-width: 0; }
 
 /* ---------- background (theme.js BACKGROUND) ---------- */
-html { background: #0e1724; }
+html { background: #2a1d1a; }
 body { background: transparent; }
-/* blue gradient photo (the supplied image with its "AI creative solutions" text
-   removed) under a 50% dark layer: the photo turns light blue at the
-   bottom, so 50% keeps white text readable there while the blue still shows */
+/* orange, plum and charcoal grain photo under a 40% dark layer: enough for
+   white text on the brightest orange (about 5.8:1) while the colour still shows */
 .photo-bg {
   position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("./assets/bg-blue.jpg") center / cover no-repeat;
+  background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url("./assets/bg-orange.jpg") center / cover no-repeat;
 }
 /* animated NEAT background */
 .neat-bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
