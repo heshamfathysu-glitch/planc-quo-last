@@ -328,7 +328,7 @@ table.t tbody tr:hover td { background: var(--accent-soft); }
   .topbar .logo { height: 28px; }
 
   main { padding: 16px 16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); }
-  .shell.focus main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .shell.focus main { padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
 
   .bottomnav {
     display: flex;
@@ -424,11 +424,8 @@ table.t tbody tr:hover td { background: var(--accent-soft); }
   .wiz { margin-top: 1vh; }
   .wiz h2 { font-size: 22px; margin-bottom: 18px; }
   .wiz .progress { margin-bottom: 20px; }
-  .wiz .nav {
-    position: fixed; inset-inline: 0; bottom: 0; z-index: 30; margin: 0;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-    background: var(--surface); border-top: 1px solid var(--line);
-  }
+  /* Next/Back sit right under the answer, not pinned to the bottom of the screen */
+  .wiz .nav { margin-top: 20px; }
   .wiz .nav .lq { flex: 1; }
   .wiz .nav .spacer { display: none; }
 
@@ -503,10 +500,6 @@ body { background: transparent; }
 .hero .warn { color: #ffd48a; text-shadow: var(--on-bg-shadow); }
 .hero a:not(.lq), main > .empty a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
 .hero .lq.primary, .wiz .nav .lq.primary { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28), 0 8px 24px rgba(0, 0, 0, 0.25); }
-@media (max-width: 760px) {
-  /* the sticky wizard bar has its own white surface */
-  .wiz .nav .lq.primary { box-shadow: none; }
-}
 .demo-entry { display: grid; gap: 8px; text-align: center; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
 .demo-entry .small { font-size: 12px; }
 
@@ -564,15 +557,6 @@ body { background: transparent; }
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
 }
 :root[data-theme="glass"] .toast.error { background: rgba(179, 38, 30, 0.9); border-color: rgba(255, 138, 128, 0.6); }
-@media (max-width: 760px) {
-  /* the sticky wizard bar sits over scrolling content, so it gets the bar glass */
-  :root[data-theme="glass"] .wiz .nav {
-    background: var(--glass-bar);
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
-    -webkit-backdrop-filter: var(--glass-blur);
-    backdrop-filter: var(--glass-blur);
-  }
-}
 @media (prefers-reduced-transparency: reduce) {
   :root[data-theme="glass"] { --surface: #15151b; --btn: #15151b; --field: #101015; --glass-bar: #101015; }
 }
