@@ -1,7 +1,8 @@
 // PLAN C quotation PDF engine.
 // Line-for-line port of make_quote.py (the master Gloria Jeans style).
-// Every measurement below was taken from that file. Do NOT edit the layout
-// constants: a quote only changes its data. Colors and font weight come from
+// Every measurement below matches that file; keep the two in step. Text sizes
+// were raised and the total lowered on the user's request (2026-10-27). Do NOT
+// edit the layout constants otherwise: a quote only changes its data. Colors and font weight come from
 // the theme, whose defaults are the master values.
 import { jsPDF } from "jspdf";
 import { ar } from "./arabic.js";
@@ -162,11 +163,11 @@ class Quote {
     // logo at 75% of the master size, kept on the same vertical centre
     if (this.logo) c.addImage(this.logo, "PNG", ML, 51.20789, 108, 50.39367, "logo", "FAST");
     this.rtext(MR, 73, page.title, 22, t.navy, this.emph());
-    this.rtext(MR, 95, page.subtitle || this.d.subtitle, 9.5, t.muted);
+    this.rtext(MR, 95, page.subtitle || this.d.subtitle, 10.5, t.muted);
     this.hline(HEADER_LINE);
     this.hline(FOOTER_LINE);
-    this.ltext(ML, 813, "PLAN C  /  CREATIVE SOLUTIONS", 6.5, t.muted);
-    this.rtext(MR, 813, `${this.d.quote_no}   |   ${n} / ${total}`, 6.5, t.muted);
+    this.ltext(ML, 813, "PLAN C  /  CREATIVE SOLUTIONS", 7, t.muted);
+    this.rtext(MR, 813, `${this.d.quote_no}   |   ${n} / ${total}`, 7, t.muted);
   }
 
   info(top) {
@@ -174,21 +175,21 @@ class Quote {
     this.rrect(ML, top, CW, 64, t.panel);
     const colw = (CW - 32) / 4;
     const cols = [
-      ["مقدم إلى", this.d.client, 13],
-      ["تاريخ الإصدار", this.d.issue_date, 10],
-      ["صالح حتى", this.d.valid_until, 10],
-      ["رقم العرض", this.d.quote_no, 9],
+      ["مقدم إلى", this.d.client, 14],
+      ["تاريخ الإصدار", this.d.issue_date, 11.5],
+      ["صالح حتى", this.d.valid_until, 11.5],
+      ["رقم العرض", this.d.quote_no, 10.5],
     ];
     cols.forEach(([label, value, size], i) => {
       const x = MR - 16 - i * colw;
-      this.rtext(x, top + 19, label, 7.5, t.muted);
+      this.rtext(x, top + 19, label, 8.5, t.muted);
       this.rtext(x, top + 44, value, size, t.ink);
     });
     return top + 64;
   }
 
-  intro(base, text) { this.rtext(MR, base, text, 9.5, this.t.ink); return base; }
-  note(base, text) { this.rtext(MR, base, text, 8.5, this.t.muted); return base; }
+  intro(base, text) { this.rtext(MR, base, text, 11, this.t.ink); return base; }
+  note(base, text) { this.rtext(MR, base, text, 9.5, this.t.muted); return base; }
 
   card(top, b) {
     const c = this.c, t = this.t;
@@ -211,33 +212,33 @@ class Quote {
     c.setDrawColor(...t.line);
     c.roundedRect(ML, top, CW, bottom - top, R, R, "S");
 
-    this.rtext(IR, top + 29, b.title, 13, t.navy, this.emph());
-    this.ltext(IL, top + 29, b.number, 12, t.navy, this.emph());
+    this.rtext(IR, top + 29, b.title, 14, t.navy, this.emph());
+    this.ltext(IL, top + 29, b.number, 13, t.navy, this.emph());
 
     let ty = top + 76;
     for (const it of items) {
       const desc = it.desc;
-      this.rtext(IR, ty, it.title, 10, t.ink);
-      if (desc) this.rtext(IR, ty + 16, desc, 7.5, t.muted);
-      if ("amount" in it) this.ltext(AX, ty + (desc ? 11 : 5), fmt(it.amount), 16, t.navy);
-      else this.ltext(AX, ty + (desc ? 9 : 3), it.value, 12, t.navy);
+      this.rtext(IR, ty, it.title, 12, t.ink);
+      if (desc) this.rtext(IR, ty + 17, desc, 9, t.muted);
+      if ("amount" in it) this.ltext(AX, ty + (desc ? 11 : 2), fmt(it.amount), 14, t.navy);
+      else this.ltext(AX, ty + (desc ? 10 : 1), it.value, 12, t.navy);
       ty += desc ? 46 : 34;
     }
 
     y = lineY;
     for (const [label, value, lcol, vcol] of rows) {
       this.hline(y, IL, IR, true);
-      this.rtext(IR, y + 15, label, 9, lcol);
-      this.ltext(AX, y + 15, fmt(value), 11.5, vcol);
+      this.rtext(IR, y + 16, label, 10.5, lcol);
+      this.ltext(AX, y + 16, fmt(value), 12, vcol);
       y += 26;
     }
 
     this.rrect(ML, navyTop, CW, 52, t.navy);
     const total = cardTotals(b, items, this.vat).total;
-    const tw = this.width(fmt(total), 24, this.emph());
-    this.ltext(AX, navyTop + 35, fmt(total), 24, t.white, this.emph());
-    this.ltext(AX + tw + 22, navyTop + 32, "SAR", 7, t.white);
-    this.rtext(IR, navyTop + 31, b.total_label || "الإجمالي شامل الضريبة", 10, t.white);
+    const tw = this.width(fmt(total), 18, this.emph());
+    this.ltext(AX, navyTop + 33, fmt(total), 18, t.white, this.emph());
+    this.ltext(AX + tw + 16, navyTop + 31, "SAR", 7.5, t.white);
+    this.rtext(IR, navyTop + 31, b.total_label || "الإجمالي شامل الضريبة", 11.5, t.white);
     return bottom;
   }
 
@@ -258,15 +259,15 @@ class Quote {
     const t = this.t;
     let last = null;
     b.items.forEach((it, i) => {
-      if (i) { this.hline(last + 21); top = last + 21 + 16; }
+      if (i) { this.hline(last + 19); top = last + 19 + 14; }
       const num = it.number || String(i + 1).padStart(2, "0");
       this.rrect(MR - 28, top, 28, 19, t.head, 3);
-      this.ctext(MR - 14, top + 13, num, 9, t.navy);
-      this.rtext(MR - 40, top + 14, it.title, 11.5, t.navy, this.emph());
+      this.ctext(MR - 14, top + 13.5, num, 10, t.navy);
+      this.rtext(MR - 40, top + 14.5, it.title, 12.5, t.navy, this.emph());
       const base = top + 38;
-      const lines = this.wrap(it.text, 8.8, CW);
-      lines.forEach((line, j) => this.rtext(MR, base + 17 * j, line, 8.8, t.muted));
-      last = base + 17 * Math.max(lines.length - 1, 0);
+      const lines = this.wrap(it.text, 10, CW);
+      lines.forEach((line, j) => this.rtext(MR, base + 19 * j, line, 10, t.muted));
+      last = base + 19 * Math.max(lines.length - 1, 0);
     });
     return last;
   }
@@ -281,7 +282,7 @@ class Quote {
     const fmtName = /^data:image\/jpe?g/.test(b.src) ? "JPEG" : "PNG";
     this.c.addImage(b.src, fmtName, x, top, w, h, undefined, "FAST");
     let bottom = top + h;
-    if (b.caption) { this.draw(b.align === "center" ? x + w / 2 : b.align === "left" ? x : MR, bottom + 16, b.caption, 8.5, this.t.muted, b.align === "center" ? "center" : b.align === "left" ? "left" : "right"); bottom += 16; }
+    if (b.caption) { this.draw(b.align === "center" ? x + w / 2 : b.align === "left" ? x : MR, bottom + 16, b.caption, 9.5, this.t.muted, b.align === "center" ? "center" : b.align === "left" ? "left" : "right"); bottom += 16; }
     return bottom;
   }
 
@@ -290,7 +291,7 @@ class Quote {
     const t = this.t, c = this.c;
     const rows = (b.rows || []).filter((r) => r.label || r.value);
     let y = top;
-    if (b.title) { this.rtext(MR, y + 12, b.title, 11.5, t.navy, this.emph()); y += 26; }
+    if (b.title) { this.rtext(MR, y + 13, b.title, 12.5, t.navy, this.emph()); y += 27; }
     const n = Math.max(rows.length, 1);
     const max = Math.max(1, ...rows.map((r) => Number(r.value) || 0));
     const plotH = 120, labelH = 30;
@@ -305,8 +306,8 @@ class Quote {
       const h = (v / max) * (plotH - 18);
       c.setFillColor(...(i === 0 || !b.highlight_first ? t.navy : t.head));
       if (h > 0) c.roundedRect(cx - bw / 2, base - h, bw, h, 3, 3, "F");
-      this.ctext(cx, base - h - 5, fmt(v), 8, t.ink);
-      this.ctext(cx, base + 15, r.label || "", 8, t.muted);
+      this.ctext(cx, base - h - 5, fmt(v), 9, t.ink);
+      this.ctext(cx, base + 16, r.label || "", 9, t.muted);
     });
     return y + plotH + labelH + 24;
   }
@@ -314,9 +315,9 @@ class Quote {
   approval(top) {
     const t = this.t;
     this.rrect(ML, top, CW, 66, t.panel);
-    this.rtext(MR - 16, top + 24, "اعتماد العرض", 10, t.ink);
-    this.rtext(MR - 16, top + 50, "الخيار المختار: __________________", 8.5, t.muted);
-    this.rtext(MR - 200, top + 50, "الاسم والتاريخ: __________________", 8.5, t.muted);
+    this.rtext(MR - 16, top + 25, "اعتماد العرض", 11.5, t.ink);
+    this.rtext(MR - 16, top + 51, "الخيار المختار: __________________", 9.5, t.muted);
+    this.rtext(MR - 230, top + 51, "الاسم والتاريخ: __________________", 9.5, t.muted);
     return top + 66;
   }
 
@@ -337,7 +338,7 @@ class Quote {
           cur = this.card(cur + gap, b);
         } else if (k === "note") cur = this.note(cur + 22, b.text);
         else if (k === "terms") cur = this.terms(cur + 20, b);
-        else if (k === "approval") cur = this.approval(cur + 42);
+        else if (k === "approval") cur = this.approval(cur + 34);
         else if (k === "image") cur = this.image(cur + (prev === null ? 24 : 18), b);
         else if (k === "chart") cur = this.chart(cur + (prev === null ? 24 : 18), b);
         else throw new Error(`unknown block type ${k}`);
