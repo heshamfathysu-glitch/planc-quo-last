@@ -1,9 +1,10 @@
 // PLAN C quotation PDF engine.
-// Line-for-line port of make_quote.py (the master Gloria Jeans style).
-// Every measurement below matches that file; keep the two in step. Text sizes
-// were raised and the total lowered on the user's request (2026-10-27). Do NOT
-// edit the layout constants otherwise: a quote only changes its data. Colors and font weight come from
-// the theme, whose defaults are the master values.
+// Line-for-line port of make_quote.py; keep the two in step. The style is
+// measured from the user's large-type Gloria Jeans reference (2026-10-27): one
+// option per page under a small eyebrow and a big title, soft boxes, rows on
+// hairlines and a green total. Do NOT edit the layout constants: a quote only
+// changes its data. Colors and title weight come from the theme, whose
+// defaults are the reference values.
 import { jsPDF } from "jspdf";
 import { ar } from "./arabic.js";
 
@@ -13,31 +14,67 @@ jsPDF.API.events = jsPDF.API.events.filter(([name]) => name !== "preProcessText"
 jsPDF.API.processArabic = undefined;
 
 export const MASTER_THEME = {
-  navy: [5, 3, 77],       // #05034D
-  ink: [20, 19, 58],      // #14133A
-  muted: [107, 111, 134], // #6B6F86
-  line: [220, 224, 234],  // #DCE0EA
-  head: [238, 240, 249],  // #EEF0F9 card header / badges
-  panel: [244, 245, 250], // #F4F5FA info + approval panels
-  red: [179, 38, 30],     // #B3261E discount
-  white: [255, 255, 255],
-  titleWeight: "regular", // "regular" | "bold" for titles and totals
+  v: 2,                     // themes saved for the earlier template have no v
+  bar: [10, 9, 64],         // top bar
+  ink: [17, 20, 60],        // #11143C text
+  muted: [114, 119, 138],   // #72778A subtitle, eyebrow, dates, notes
+  line: [222, 227, 235],    // rules and box borders
+  box: [240, 240, 252],     // lavender box, approval
+  box2: [232, 242, 250],    // blue box
+  banner: [255, 240, 219],  // peach banner
+  bannerInk: [131, 80, 28], // #83501C banner text
+  totalBg: [222, 242, 224], // green total box
+  accent: [36, 90, 61],     // #245A3D total amount, every other term heading
+  footer: [102, 110, 133],  // footer text
+  titleWeight: "regular",   // "regular" | "bold" for titles and totals
 };
+export const themeOf = (theme) => ({ ...MASTER_THEME, ...(theme?.v === 2 ? theme : {}) });
 
 const PW = 595.2755905511812; // A4 width
-const ML = 41.5;
-const MR = PW - ML;
+const ML = 38;
+const MR = 557;
 const CW = MR - ML;
-const IR = MR - 18;
-const IL = ML + 18;
-const AX = ML + 24;
-const LW = 0.8;
-const R = 6;
-const HEADER_LINE = 132;
-const FOOTER_LINE = 797;
-export const CONTENT_LIMIT = 785;
+const HEADER_LINE = 115;
+const FOOTER_LINE = 805;
+const TITLE_BASE = 199.35;
+export const CONTENT_LIMIT = 795; // lowest box edge; a last text line sits on 783.55
+const TEXT_DESCENT = 11.45;
+const INTRO_W = 345;
+const TERMS_GAP = 50.68; // last body line of a term to the next heading
 const VAT_RATE = 15;
 
+// how each block starts and ends: text blocks sit on baselines (font size),
+// boxes on their edges
+const SPEC = {
+  intro: [17, 17], note: [13, 13], dates: [11, 11], info: [11, 11], terms: [17, 17.15],
+  box: [0, 0], banner: [0, 0], card: [0, 0], approval: [0, 0], image: [0, 0], chart: [0, 0],
+};
+
+// space between neighbouring blocks, measured from the reference; the page
+// title counts as text of 26.7
+function gapBetween(prev, prevType, next, nextType) {
+  if (prev) return next ? prev + 1.4 * next : 23.65 + prev;
+  if (next) return 14.55 + next;
+  return prevType === "box" && nextType === "box" ? 14 : 18;
+}
+
+// Spare room is shared out evenly over the gaps (none grows past 1.6x); when
+// a page is too full the gaps shrink, down to half.
+function fitGaps(flex, spare) {
+  const total = flex.reduce((s, g) => s + g, 0);
+  if (spare < -0.01) {
+    if (!total) return { adj: (g) => g, over: -spare };
+    const f = Math.max(0.5, (total + spare) / total);
+    return { adj: (g) => g * f, over: Math.max(0, -spare - total * (1 - f)) };
+  }
+  const grow = (e) => flex.reduce((s, g) => s + Math.min(e, 0.6 * g), 0);
+  let lo = 0, hi = spare;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (grow(mid) > spare) hi = mid; else lo = mid;
+  }
+  return { adj: (g) => g + Math.min(lo, 0.6 * g), over: 0 };
+}
 
 import { fmt } from "../lib/format.js";
 export { fmt };
@@ -85,14 +122,17 @@ function toBinaryString(bytes) {
   return s;
 }
 
+const sum = (a) => a.reduce((s, x) => s + x, 0);
+
 class Quote {
   constructor(data, assets, pricing, theme) {
     this.d = data;
-    this.t = { ...MASTER_THEME, ...(theme || {}) };
+    this.t = themeOf(theme);
     this.pricing = pricing;
     this.vat = data.vat_rate ?? VAT_RATE;
     this.logo = assets.logo;
     this.warnings = [];
+    this.dry = false; // measuring only: nothing is painted
     const c = (this.c = new jsPDF({ unit: "pt", format: "a4", compress: true }));
     c.addFileToVFS("PlexAr-Regular.ttf", toBinaryString(assets.fontRegular));
     c.addFont("PlexAr-Regular.ttf", "PlexAr", "normal", "Identity-H");
@@ -118,18 +158,21 @@ class Quote {
 
   wrap(text, size, maxW) {
     const lines = [];
-    let cur = "";
-    for (const word of String(text).split(" ")) {
-      const cand = (cur + " " + word).trim();
-      if (cur && this.width(cand, size) > maxW) { lines.push(cur); cur = word; }
-      else cur = cand;
+    for (const para of String(text ?? "").split("\n")) {
+      let cur = "";
+      for (const word of para.split(" ")) {
+        const cand = (cur + " " + word).trim();
+        if (cur && this.width(cand, size) > maxW) { lines.push(cur); cur = word; }
+        else cur = cand;
+      }
+      if (cur) lines.push(cur);
     }
-    if (cur) lines.push(cur);
     return lines;
   }
 
-  // text helpers; base is the top-based baseline, as in make_quote.py
-  draw(x, base, text, size, color, align, weight) {
+  // ---- painting primitives; base is the top-based baseline ----
+  text(x, base, text, size, color, align = "right", weight) {
+    if (this.dry) return;
     const c = this.c;
     this.font(size, weight);
     c.setTextColor(...color);
@@ -138,216 +181,263 @@ class Quote {
     const dx = align === "right" ? -w : align === "center" ? -w / 2 : 0;
     c.text(s, x + dx, base, { baseline: "alphabetic", isInputVisual: true, isOutputVisual: true });
   }
-  rtext(x, b, t, s, col, w) { this.draw(x, b, t, s, col, "right", w); }
-  ltext(x, b, t, s, col, w) { this.draw(x, b, t, s, col, "left", w); }
-  ctext(x, b, t, s, col, w) { this.draw(x, b, t, s, col, "center", w); }
 
-  hline(top, x0 = ML, x1 = MR, dash = false) {
-    const c = this.c;
-    c.setDrawColor(...this.t.line);
-    c.setLineWidth(LW);
-    if (dash) c.setLineDashPattern([2, 2], 0);
-    c.line(x0, top, x1, top);
-    if (dash) c.setLineDashPattern([], 0);
+  // one line that shrinks to fit maxW
+  fitText(x, base, text, size, color, maxW, weight) {
+    const w = this.width(text, size, weight);
+    this.text(x, base, text, w > maxW ? (size * maxW) / w : size, color, "right", weight);
   }
 
-  rrect(x, top, w, h, color, r = R) {
-    this.c.setFillColor(...color);
-    this.c.roundedRect(x, top, w, h, r, r, "F");
+  rule(y, x0, x1, lw) {
+    if (this.dry) return;
+    const c = this.c;
+    c.setDrawColor(...this.t.line);
+    c.setLineWidth(lw);
+    c.line(x0, y, x1, y);
+  }
+
+  rect(x, top, w, h, fill, stroke = true) {
+    if (this.dry) return;
+    const c = this.c;
+    c.setFillColor(...fill);
+    if (stroke) { c.setDrawColor(...this.t.line); c.setLineWidth(0.6); }
+    c.rect(x, top, w, h, stroke ? "FD" : "F");
   }
 
   pageFrame(page, n, total) {
-    const c = this.c, t = this.t;
-    c.setFillColor(...t.navy);
-    c.rect(0, 0, PW, 5.5, "F");
-    // logo at 75% of the master size, kept on the same vertical centre
-    if (this.logo) c.addImage(this.logo, "PNG", ML, 51.20789, 108, 50.39367, "logo", "FAST");
-    this.rtext(MR, 73, page.title, 22, t.navy, this.emph());
-    this.rtext(MR, 95, page.subtitle || this.d.subtitle, 10.5, t.muted);
-    this.hline(HEADER_LINE);
-    this.hline(FOOTER_LINE);
-    this.ltext(ML, 813, "PLAN C  /  CREATIVE SOLUTIONS", 7, t.muted);
-    this.rtext(MR, 813, `${this.d.quote_no}   |   ${n} / ${total}`, 7, t.muted);
+    const c = this.c, t = this.t, d = this.d;
+    this.rect(0, 0, PW, 8, t.bar, false);
+    if (this.logo) c.addImage(this.logo, "PNG", ML, 28.34, 140, 65.325138, "logo", "FAST");
+    this.fitText(MR, 53.05, d.client, 21, t.ink, MR - 198, this.emph());
+    this.fitText(MR, 83.7, subtitleOf(page, d), 14, t.muted, MR - 198);
+    this.rule(HEADER_LINE, ML, MR, 0.7);
+    this.rule(FOOTER_LINE, ML, MR, 0.7);
+    if (page.eyebrow) this.fitText(MR, 148.65, page.eyebrow, 13, t.muted, CW);
+    this.fitText(MR, TITLE_BASE, page.title || "", 27, t.ink, CW, this.emph());
+    c.setFont("helvetica", "normal");
+    c.setFontSize(8);
+    c.setTextColor(...t.footer);
+    const right = `${d.quote_no} | ${n} / ${total}`;
+    c.text("PLAN C / CREATIVE SOLUTIONS", ML, 824, { baseline: "alphabetic" });
+    c.text(right, MR - c.getTextWidth(right), 824, { baseline: "alphabetic" });
   }
 
-  info(top) {
+  // ---- blocks: each takes where it starts (baseline or top edge) and returns
+  // { end, gaps } with gaps = its own flexible spaces at natural size ----
+  intro(base, b) { return this.para(base, b.text, 17, 25.5, INTRO_W, this.t.ink); }
+  note(base, b) { return this.para(base, b.text, 13, 19.5, CW, this.t.muted); }
+  dates(base, b) {
+    const day = (s) => String(s || "").replace(/\s*\/\s*/g, "/");
+    const text = b.text || `الإصدار: ${day(this.d.issue_date)} | صالح حتى: ${day(this.d.valid_until)}`;
+    return this.para(base, text, 11, 16.5, CW, this.t.muted);
+  }
+
+  para(base, text, size, lead, maxW, color) {
+    const lines = this.wrap(text, size, maxW);
+    lines.forEach((l, i) => this.text(MR, base + lead * i, l, size, color));
+    return { end: base + lead * Math.max(lines.length - 1, 0), gaps: [] };
+  }
+
+  box(top, b) {
     const t = this.t;
-    this.rrect(ML, top, CW, 64, t.panel);
-    const colw = (CW - 32) / 4;
-    const cols = [
-      ["مقدم إلى", this.d.client, 14],
-      ["تاريخ الإصدار", this.d.issue_date, 11.5],
-      ["صالح حتى", this.d.valid_until, 11.5],
-      ["رقم العرض", this.d.quote_no, 10.5],
-    ];
-    cols.forEach(([label, value, size], i) => {
-      const x = MR - 16 - i * colw;
-      this.rtext(x, top + 19, label, 8.5, t.muted);
-      this.rtext(x, top + 44, value, size, t.ink);
-    });
-    return top + 64;
+    const lines = (Array.isArray(b.lines) ? b.lines : String(b.lines || "").split("\n")).flatMap((l) => this.wrap(l, 16, 481));
+    const compact = lines.length <= 1;
+    const tb = top + (compact ? 26.9 : 31.9);
+    const first = b.title ? tb + (compact ? 32.9 : 37.9) : tb;
+    const last = lines.length ? first + 24 * (lines.length - 1) : tb;
+    const bottom = last + (lines.length > 1 ? 22.2 : 20.2);
+    this.rect(ML, top, CW, bottom - top, b.tone === "blue" ? t.box2 : t.box);
+    if (b.title) this.text(538, tb, b.title, 18, t.ink);
+    lines.forEach((l, i) => this.text(538, first + 24 * i, l, 16, t.ink));
+    return { end: bottom, gaps: [] };
   }
 
-  intro(base, text) { this.rtext(MR, base, text, 11, this.t.ink); return base; }
-  note(base, text) { this.rtext(MR, base, text, 9.5, this.t.muted); return base; }
-
-  card(top, b) {
-    const c = this.c, t = this.t;
-    const items = b.items.map((i) => resolveItem(i, this.pricing));
-
-    let y = top + 76;
-    for (const it of items) y += it.desc ? 46 : 34;
-    const lineY = y - 14;
-    const rows = this.summaryRows(b, items);
-    const navyTop = lineY + 26 * rows.length + 4;
-    const bottom = navyTop + 52;
-
-    c.setDrawColor(...t.line);
-    c.setLineWidth(LW);
-    c.setFillColor(...t.white);
-    c.roundedRect(ML, top, CW, bottom - top, R, R, "FD");
-    this.rrect(ML, top, CW, 48, t.head);
-    c.rect(ML, top + 40, CW, 8, "F");
-    this.hline(top + 48);
-    c.setDrawColor(...t.line);
-    c.roundedRect(ML, top, CW, bottom - top, R, R, "S");
-
-    this.rtext(IR, top + 29, b.title, 14, t.navy, this.emph());
-    this.ltext(IL, top + 29, b.number, 13, t.navy, this.emph());
-
-    let ty = top + 76;
-    for (const it of items) {
-      const desc = it.desc;
-      this.rtext(IR, ty, it.title, 12, t.ink);
-      if (desc) this.rtext(IR, ty + 17, desc, 9, t.muted);
-      if ("amount" in it) this.ltext(AX, ty + (desc ? 11 : 2), fmt(it.amount), 14, t.navy);
-      else this.ltext(AX, ty + (desc ? 10 : 1), it.value, 12, t.navy);
-      ty += desc ? 46 : 34;
-    }
-
-    y = lineY;
-    for (const [label, value, lcol, vcol] of rows) {
-      this.hline(y, IL, IR, true);
-      this.rtext(IR, y + 16, label, 10.5, lcol);
-      this.ltext(AX, y + 16, fmt(value), 12, vcol);
-      y += 26;
-    }
-
-    this.rrect(ML, navyTop, CW, 52, t.navy);
-    const total = cardTotals(b, items, this.vat).total;
-    const tw = this.width(fmt(total), 18, this.emph());
-    this.ltext(AX, navyTop + 33, fmt(total), 18, t.white, this.emph());
-    this.ltext(AX + tw + 16, navyTop + 31, "SAR", 7.5, t.white);
-    this.rtext(IR, navyTop + 31, b.total_label || "الإجمالي شامل الضريبة", 11.5, t.white);
-    return bottom;
+  banner(top, b) {
+    const lines = this.wrap(b.text, 16, 489);
+    const h = 43 + 22 * Math.max(lines.length - 1, 0);
+    this.rect(ML, top, CW, h, this.t.banner);
+    lines.forEach((l, i) => this.text(542, top + 24.8 + 22 * i, l, 16, this.t.bannerInk));
+    return { end: top + h, gaps: [] };
   }
 
-  summaryRows(b, items) {
+  card(top, b, ctx) {
     const t = this.t;
-    const { base, disc, discount, net, vat } = cardTotals(b, items, this.vat);
-    const rows = [];
-    if (b.subtotal_label) rows.push([b.subtotal_label, base, t.ink, t.navy]);
-    if (disc) {
-      rows.push([`خصم ${fmt(disc)}%`, -discount, t.ink, t.red]);
-      rows.push(["الإجمالي بعد الخصم", net, t.ink, t.navy]);
+    const items = (b.items || []).map((i) => resolveItem(i, this.pricing));
+    const tot = cardTotals(b, items, this.vat);
+    const P = ctx.compact ? { sep: 15, next: 23, sub: 18, subPad: 12 } : { sep: 19.2, next: 27.8, sub: 21, subPad: 15 };
+    let y = top + 20.8, sep = null;
+    if (b.title) { this.text(MR, y, b.title, 18, t.ink, "right", this.emph()); y += 42; }
+    for (const r of this.cardRows(b, items, tot)) {
+      const avail = 486 - this.width(r.value, 16) - 24;
+      let main = r.label || b.brief ? this.wrap(r.label || r.title, 16, avail) : null, sub = [];
+      if (!main) {
+        const both = r.desc ? `${r.title} • ${r.desc}` : r.title || "";
+        if (this.width(both, 16) <= avail) main = [both];
+        else { main = this.wrap(r.title, 16, avail); sub = this.wrap(r.desc, 12, avail); }
+      }
+      main.forEach((l, i) => this.text(540, y + 22 * i, l, 16, t.ink));
+      this.text(54, y, r.value, 16, t.ink, "left");
+      let z = y + 22 * Math.max(main.length - 1, 0);
+      if (sub.length) {
+        z += P.sub;
+        sub.forEach((l, i) => this.text(540, z + 16 * i, l, 12, t.muted));
+        z += 16 * (sub.length - 1);
+      }
+      sep = z + (sub.length ? P.subPad : P.sep);
+      this.rule(sep, 54, 541, 0.6);
+      y = sep + P.next;
     }
-    if (b.vat !== false) rows.push([`ضريبة القيمة المضافة ${fmt(this.vat)}%`, vat, t.muted, t.muted]);
+    const tt = sep === null ? top : sep + 18;
+    this.rect(ML, tt, 345, 48, t.totalBg);
+    this.text(369, tt + 26.7, b.total_label || (b.vat !== false ? "الإجمالي شامل الضريبة" : "الإجمالي"), 14, t.ink);
+    this.text(51, tt + 27.75, `${fmt(tot.total)} SAR`, 15, t.accent, "left", this.emph());
+    return { end: tt + 48, gaps: [] };
+  }
+
+  cardRows(b, items, tot) {
+    const rows = items.map((it) => ({ label: it.label, title: it.title, desc: it.desc, value: "amount" in it ? fmt(it.amount) : String(it.value ?? "") }));
+    if ("price" in b || (b.subtotal_label && items.length > 1)) rows.push({ label: b.subtotal_label || "قيمة الخيار", value: fmt(tot.base) });
+    if (tot.disc) {
+      rows.push({ label: `خصم ${fmt(tot.disc)}%`, value: fmt(-tot.discount) });
+      rows.push({ label: "الإجمالي بعد الخصم", value: fmt(tot.net) });
+    }
+    if (b.vat !== false) rows.push({ label: `ضريبة القيمة المضافة ${fmt(this.vat)}%`, value: fmt(tot.vat) });
     return rows;
   }
 
-  terms(top, b) {
+  terms(base, b, ctx) {
     const t = this.t;
-    let last = null;
-    b.items.forEach((it, i) => {
-      if (i) { this.hline(last + 19); top = last + 19 + 14; }
-      const num = it.number || String(i + 1).padStart(2, "0");
-      this.rrect(MR - 28, top, 28, 19, t.head, 3);
-      this.ctext(MR - 14, top + 13.5, num, 10, t.navy);
-      this.rtext(MR - 40, top + 14.5, it.title, 12.5, t.navy, this.emph());
-      const base = top + 38;
-      const lines = this.wrap(it.text, 10, CW);
-      lines.forEach((line, j) => this.rtext(MR, base + 19 * j, line, 10, t.muted));
-      last = base + 19 * Math.max(lines.length - 1, 0);
+    const items = b.items || [];
+    let y = base, last = base;
+    items.forEach((it, i) => {
+      if (i) y = last + ctx.adj(TERMS_GAP);
+      this.text(MR, y, it.title, 17, i % 2 ? t.accent : t.ink, "right", this.emph());
+      const lines = this.wrap(it.text, 13.5, CW);
+      lines.forEach((l, j) => this.text(MR, y + 27.32 + 20.25 * j, l, 13.5, t.ink));
+      last = lines.length ? y + 27.32 + 20.25 * (lines.length - 1) : y;
     });
-    return last;
-  }
-
-  // ---- additions to the master: same frame, colors and type scale ----
-  // image (PNG/JPEG logo or chart), right aligned like the text column
-  image(top, b) {
-    if (!b.src) return top;
-    const w = (CW * Math.min(100, Math.max(10, b.width_pct || 100))) / 100;
-    const h = b.ratio ? w * b.ratio : 160;
-    const x = b.align === "center" ? ML + (CW - w) / 2 : b.align === "left" ? ML : MR - w;
-    const fmtName = /^data:image\/jpe?g/.test(b.src) ? "JPEG" : "PNG";
-    this.c.addImage(b.src, fmtName, x, top, w, h, undefined, "FAST");
-    let bottom = top + h;
-    if (b.caption) { this.draw(b.align === "center" ? x + w / 2 : b.align === "left" ? x : MR, bottom + 16, b.caption, 9.5, this.t.muted, b.align === "center" ? "center" : b.align === "left" ? "left" : "right"); bottom += 16; }
-    return bottom;
-  }
-
-  // bar chart drawn as vectors in the template colors
-  chart(top, b) {
-    const t = this.t, c = this.c;
-    const rows = (b.rows || []).filter((r) => r.label || r.value);
-    let y = top;
-    if (b.title) { this.rtext(MR, y + 13, b.title, 12.5, t.navy, this.emph()); y += 27; }
-    const n = Math.max(rows.length, 1);
-    const max = Math.max(1, ...rows.map((r) => Number(r.value) || 0));
-    const plotH = 120, labelH = 30;
-    this.rrect(ML, y, CW, plotH + labelH + 24, t.panel);
-    const x0 = ML + 16, x1 = MR - 16, base = y + 12 + plotH;
-    const slot = (x1 - x0) / n, bw = Math.min(46, slot * 0.55);
-    c.setDrawColor(...t.line); c.setLineWidth(LW); c.line(x0, base, x1, base);
-    rows.forEach((r, i) => {
-      // first row on the right (reading order)
-      const cx = x1 - slot * (i + 0.5);
-      const v = Number(r.value) || 0;
-      const h = (v / max) * (plotH - 18);
-      c.setFillColor(...(i === 0 || !b.highlight_first ? t.navy : t.head));
-      if (h > 0) c.roundedRect(cx - bw / 2, base - h, bw, h, 3, 3, "F");
-      this.ctext(cx, base - h - 5, fmt(v), 9, t.ink);
-      this.ctext(cx, base + 16, r.label || "", 9, t.muted);
-    });
-    return y + plotH + labelH + 24;
+    return { end: last, gaps: items.slice(1).map(() => TERMS_GAP) };
   }
 
   approval(top) {
     const t = this.t;
-    this.rrect(ML, top, CW, 66, t.panel);
-    this.rtext(MR - 16, top + 25, "اعتماد العرض", 11.5, t.ink);
-    this.rtext(MR - 16, top + 51, "الخيار المختار: __________________", 9.5, t.muted);
-    this.rtext(MR - 230, top + 51, "الاسم والتاريخ: __________________", 9.5, t.muted);
-    return top + 66;
+    this.rect(ML, top, CW, 64, t.box);
+    this.text(542, top + 21.75, "اعتماد العرض", 15, t.ink);
+    this.text(542, top + 48.6, "الخيار: ______________ الاسم والتاريخ: ______________", 12, t.ink);
+    return { end: top + 64, gaps: [] };
+  }
+
+  // image (PNG/JPEG logo or chart), right aligned like the text column
+  image(top, b) {
+    if (!b.src) return { end: top, gaps: [] };
+    const w = (CW * Math.min(100, Math.max(10, b.width_pct || 100))) / 100;
+    const h = b.ratio ? w * b.ratio : 160;
+    const x = b.align === "center" ? ML + (CW - w) / 2 : b.align === "left" ? ML : MR - w;
+    if (!this.dry) this.c.addImage(b.src, /^data:image\/jpe?g/.test(b.src) ? "JPEG" : "PNG", x, top, w, h, undefined, "FAST");
+    let end = top + h;
+    if (b.caption) {
+      const align = b.align === "center" ? "center" : b.align === "left" ? "left" : "right";
+      this.text(align === "center" ? x + w / 2 : align === "left" ? x : MR, end + 18, b.caption, 12, this.t.muted, align);
+      end += 22;
+    }
+    return { end, gaps: [] };
+  }
+
+  // bar chart drawn as vectors in the template colors
+  chart(top, b) {
+    const t = this.t;
+    const rows = (b.rows || []).filter((r) => r.label || r.value);
+    let y = top;
+    if (b.title) { this.text(MR, y + 15, b.title, 17, t.ink, "right", this.emph()); y += 31; }
+    const n = Math.max(rows.length, 1);
+    const max = Math.max(1, ...rows.map((r) => Number(r.value) || 0));
+    const plotH = 120, labelH = 32;
+    this.rect(ML, y, CW, plotH + labelH + 24, t.box);
+    const x0 = ML + 16, x1 = MR - 16, base = y + 12 + plotH;
+    const slot = (x1 - x0) / n, bw = Math.min(46, slot * 0.55);
+    this.rule(base, x0, x1, 0.6);
+    rows.forEach((r, i) => {
+      // first row on the right (reading order)
+      const cx = x1 - slot * (i + 0.5);
+      const v = Number(r.value) || 0;
+      const h = (v / max) * (plotH - 20);
+      if (h > 0) this.rect(cx - bw / 2, base - h, bw, h, i === 0 || !b.highlight_first ? t.bar : t.box2, false);
+      this.text(cx, base - h - 6, fmt(v), 12, t.ink, "center");
+      this.text(cx, base + 19, r.label || "", 12, t.muted, "center");
+    });
+    return { end: y + plotH + labelH + 24, gaps: [] };
+  }
+
+  block(b, start, ctx) {
+    return this[b.type === "info" ? "dates" : b.type](start, b, ctx);
+  }
+
+  // where every block of a page goes: natural gaps, then fitted to the page
+  plan(blocks) {
+    const specs = blocks.map((b) => {
+      if (!(b.type in SPEC)) throw new Error(`unknown block type ${b.type}`);
+      return SPEC[b.type];
+    });
+    const kind = (b) => (b.type === "box" ? "box" : b.type);
+    const gaps = blocks.map((b, i) => (i
+      ? gapBetween(specs[i - 1][1], kind(blocks[i - 1]), specs[i][0], kind(b))
+      : gapBetween(26.7, "title", specs[0][0], kind(b))));
+    let out = null;
+    for (const compact of [false, true]) {
+      this.dry = true;
+      const ms = blocks.map((b) => this.block(b, 0, { compact, adj: (g) => g }));
+      this.dry = false;
+      const fixed = TITLE_BASE + gaps[0] + sum(ms.map((m) => m.end - sum(m.gaps)));
+      const flex = [...gaps.slice(1), ...ms.flatMap((m) => m.gaps)];
+      const descent = specs[specs.length - 1][1] ? TEXT_DESCENT : 0;
+      const fit = fitGaps(flex, CONTENT_LIMIT - (fixed + sum(flex) + descent));
+      out = { compact, gaps, ...fit };
+      if (fit.over <= 0.5 || !blocks.some((b) => b.type === "card")) break;
+    }
+    return out;
+  }
+
+  // a page that cannot fit even when tightened continues on a copy of itself
+  paginate(pages) {
+    const out = [];
+    for (const page of pages) {
+      let rest = page.blocks || [];
+      if (!rest.length) { out.push({ page, blocks: [], plan: null }); continue; }
+      while (rest.length) {
+        let k = rest.length, plan = this.plan(rest);
+        while (plan.over > 0.5 && k > 1) plan = this.plan(rest.slice(0, --k));
+        // a dates line or note never sits alone on the next page
+        if (k < rest.length && k > 1 && rest.slice(k).every((b) => b.type === "dates" || b.type === "note")) plan = this.plan(rest.slice(0, --k));
+        out.push({ page, blocks: rest.slice(0, k), plan });
+        rest = rest.slice(k);
+      }
+    }
+    return out;
   }
 
   build() {
-    const pages = this.d.pages;
-    pages.forEach((page, idx) => {
+    const sheets = this.paginate(this.d.pages);
+    sheets.forEach(({ page, blocks, plan }, idx) => {
       const n = idx + 1;
       if (idx) this.c.addPage();
-      this.pageFrame(page, n, pages.length);
-      let cur = HEADER_LINE, prev = null;
-      const hasInfo = page.blocks.some((b) => b.type === "info");
-      for (const b of page.blocks) {
-        const k = b.type;
-        if (k === "info") cur = this.info(cur + 18);
-        else if (k === "intro") cur = this.intro(cur + 24, b.text);
-        else if (k === "card") {
-          const gap = prev === null ? 24 : prev === "card" && hasInfo ? 16 : 18;
-          cur = this.card(cur + gap, b);
-        } else if (k === "note") cur = this.note(cur + 22, b.text);
-        else if (k === "terms") cur = this.terms(cur + 20, b);
-        else if (k === "approval") cur = this.approval(cur + 34);
-        else if (k === "image") cur = this.image(cur + (prev === null ? 24 : 18), b);
-        else if (k === "chart") cur = this.chart(cur + (prev === null ? 24 : 18), b);
-        else throw new Error(`unknown block type ${k}`);
-        prev = k;
-      }
-      if (cur > CONTENT_LIMIT) this.warnings.push({ page: n, overflow: Math.round(cur - CONTENT_LIMIT) });
+      this.pageFrame(page, n, sheets.length);
+      if (!plan) return;
+      let cur = TITLE_BASE;
+      blocks.forEach((b, i) => {
+        cur += i ? plan.adj(plan.gaps[i]) : plan.gaps[0];
+        cur = this.block(b, cur, { compact: plan.compact, adj: plan.adj }).end;
+      });
+      if (plan.over > 0.5) this.warnings.push({ page: n, overflow: Math.round(plan.over) });
     });
     return this.c;
   }
+}
+
+// header subtitle: the quote subject, without the client name the old
+// template repeated after it
+function subtitleOf(page, d) {
+  const client = String(d.client || "").trim();
+  return String(page.subtitle || d.subtitle || "").split(" | ").filter((p) => p.trim() && p.trim() !== client).join(" | ");
 }
 
 // Returns { doc, warnings }. assets: { fontRegular, fontBold?, logo } as Uint8Array.

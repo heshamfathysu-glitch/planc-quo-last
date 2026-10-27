@@ -5,26 +5,30 @@ import { get, put, remove, useSetting } from "../lib/store.js";
 import { renderQuote, downloadQuote } from "../pdf/render.js";
 import Preview from "../pdf/Preview.jsx";
 import { quoteTotal, clientTypeLabel } from "../lib/compose.js";
-import { STATUSES, DEFAULT_TERMS, ORDINALS } from "../data/catalog.js";
+import { STATUSES, DEFAULT_TERMS } from "../data/catalog.js";
 import { money, toast, ConfirmButton, Loading } from "../ui.jsx";
 import NotFound from "./NotFound.jsx";
 import { resolveItem, cardTotals } from "../pdf/engine.js";
 
 const BLOCK_TYPES = [
-  { type: "card", label: "خيار سعري" },
-  { type: "intro", label: "سطر تمهيدي" },
+  { type: "card", label: "جدول الأسعار والإجمالي" },
+  { type: "intro", label: "فقرة تمهيدية" },
+  { type: "box", label: "صندوق نقاط (ماذا يشمل)" },
+  { type: "banner", label: "شريط تنبيه أو خصم" },
+  { type: "dates", label: "سطر التواريخ" },
   { type: "note", label: "ملاحظة" },
   { type: "terms", label: "شروط وأحكام" },
   { type: "image", label: "صورة / شعار / رسم بياني PNG" },
   { type: "chart", label: "رسم بياني من أرقام" },
-  { type: "info", label: "مربع بيانات العرض" },
   { type: "approval", label: "مربع الاعتماد" },
 ];
-const blockLabel = (t) => BLOCK_TYPES.find((b) => b.type === t)?.label || t;
+// quotes made before the large-type template may still hold an info block
+const blockLabel = (t) => (t === "info" ? "سطر التواريخ" : BLOCK_TYPES.find((b) => b.type === t)?.label || t);
 
-function newBlock(type, n) {
-  if (type === "card") return { type, number: String(n).padStart(2, "0"), title: `الخيار ${ORDINALS[n - 1] || n} | `, items: [{ title: "", desc: "", amount: 0 }] };
-  if (type === "intro" || type === "note") return { type, text: "" };
+function newBlock(type) {
+  if (type === "card") return { type, brief: true, items: [{ title: "", amount: 0 }] };
+  if (type === "box") return { type, title: "ماذا يشمل هذا الخيار؟", lines: [""] };
+  if (type === "intro" || type === "note" || type === "banner") return { type, text: "" };
   if (type === "terms") return { type, items: [{ title: "", text: "" }] };
   if (type === "image") return { type, src: "", width_pct: 40, align: "right" };
   if (type === "chart") return { type, title: "", rows: [{ label: "", value: 0 }, { label: "", value: 0 }] };
@@ -107,7 +111,6 @@ export default function Editor() {
     nav("/quotes");
   }
 
-  const cardsCount = d.pages.flatMap((p) => p.blocks).filter((b) => b.type === "card").length;
   const a = q.answers || {};
 
   return (
@@ -139,7 +142,7 @@ export default function Editor() {
             <label className="f">رقم العرض<input className="in" dir="ltr" value={d.quote_no} onChange={(e) => setData({ quote_no: e.target.value })} /></label>
             <label className="f">تاريخ الإصدار<input className="in" dir="ltr" value={d.issue_date} onChange={(e) => setData({ issue_date: e.target.value })} /></label>
             <label className="f">صالح حتى<input className="in" dir="ltr" value={d.valid_until} onChange={(e) => setData({ valid_until: e.target.value })} /></label>
-            <label className="f" style={{ gridColumn: "1 / -1" }}>العنوان الفرعي (أعلى كل صفحة)<input className="in" value={d.subtitle} onChange={(e) => setData({ subtitle: e.target.value })} /></label>
+            <label className="f" style={{ gridColumn: "1 / -1" }}>موضوع العرض (تحت اسم العميل أعلى كل صفحة)<input className="in" value={d.subtitle} onChange={(e) => setData({ subtitle: e.target.value })} /></label>
           </div>
 
           {(a.clientType || a.partyName) && (
@@ -156,7 +159,10 @@ export default function Editor() {
                 <button className="lq icon sm" title="أسفل" aria-label="نقل الصفحة لأسفل" onClick={() => setPages(move(d.pages, pi, 1))}>↓</button>
                 {d.pages.length > 1 && <ConfirmButton className="lq sm danger" onConfirm={() => setPages(d.pages.filter((_, i) => i !== pi))}>حذف الصفحة</ConfirmButton>}
               </div>
-              <label className="f">عنوان الصفحة<input className="in" value={p.title} onChange={(e) => setPage(pi, { title: e.target.value })} /></label>
+              <div className="grid g2">
+                <label className="f">سطر صغير فوق العنوان<input className="in" placeholder="مثل: الخيار الأول" value={p.eyebrow || ""} onChange={(e) => setPage(pi, { eyebrow: e.target.value || undefined })} /></label>
+                <label className="f">عنوان الصفحة<input className="in" value={p.title} onChange={(e) => setPage(pi, { title: e.target.value })} /></label>
+              </div>
 
               {p.blocks.map((b, bi) => (
                 <div className="block" key={bi}>
@@ -183,14 +189,14 @@ export default function Editor() {
               ))}
 
               <div className="row">
-                <select className="in auto" aria-label="إضافة قسم" value="" onChange={(e) => e.target.value && setPage(pi, { blocks: [...p.blocks, newBlock(e.target.value, cardsCount + 1)] })}>
+                <select className="in auto" aria-label="إضافة قسم" value="" onChange={(e) => e.target.value && setPage(pi, { blocks: [...p.blocks, newBlock(e.target.value)] })}>
                   <option value="">+ إضافة قسم...</option>
                   {BLOCK_TYPES.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
                 </select>
               </div>
             </div>
           ))}
-          <button className="lq" onClick={() => setPages([...d.pages, { title: "صفحة جديدة", blocks: [] }])}>+ إضافة صفحة بنفس الأسلوب</button>
+          <button className="lq" onClick={() => setPages([...d.pages, { eyebrow: "", title: "صفحة جديدة", blocks: [] }])}>+ إضافة صفحة بنفس الأسلوب</button>
           <div className="sub" role="status">{saved}</div>
         </div>
 
@@ -209,10 +215,24 @@ export default function Editor() {
 }
 
 function BlockEditor({ b, set, pricing, termsLib }) {
-  if (b.type === "intro" || b.type === "note") {
-    return <input className="in" value={b.text} onChange={(e) => set({ text: e.target.value })} />;
+  if (b.type === "intro" || b.type === "note" || b.type === "banner") {
+    return <textarea className="in" rows={2} value={b.text} onChange={(e) => set({ text: e.target.value })} />;
   }
-  if (b.type === "info") return <div className="sub">يعرض: مقدم إلى، تاريخ الإصدار، صالح حتى، رقم العرض</div>;
+  if (b.type === "box") {
+    return (
+      <div style={{ display: "grid", gap: 8 }}>
+        <div className="row">
+          <input className="in auto" style={{ flex: 1 }} placeholder="عنوان الصندوق" value={b.title || ""} onChange={(e) => set({ title: e.target.value })} />
+          <select className="in auto" aria-label="لون الصندوق" value={b.tone || ""} onChange={(e) => set({ tone: e.target.value || undefined })}>
+            <option value="">بنفسجي فاتح</option>
+            <option value="blue">أزرق فاتح</option>
+          </select>
+        </div>
+        <textarea className="in" rows={3} placeholder="كل سطر نقطة" value={(b.lines || []).join("\n")} onChange={(e) => set({ lines: e.target.value.split("\n") })} />
+      </div>
+    );
+  }
+  if (b.type === "dates" || b.type === "info") return <input className="in" placeholder="الإصدار: ... | صالح حتى: ... (تلقائي من بيانات العرض)" value={b.text || ""} onChange={(e) => set({ text: e.target.value || undefined })} />;
   if (b.type === "approval") return <div className="sub">مربع اعتماد العرض والتوقيع</div>;
   if (b.type === "terms") {
     const upd = (i, p) => set({ items: b.items.map((it, j) => (j === i ? { ...it, ...p } : it)) });
@@ -275,10 +295,7 @@ function CardEditor({ b, set, pricing }) {
 
   return (
     <div style={{ display: "grid", gap: 10 }}>
-      <div className="row">
-        <input className="in" style={{ width: 70 }} dir="ltr" value={b.number} onChange={(e) => set({ number: e.target.value })} />
-        <input className="in auto" style={{ flex: 1 }} value={b.title} onChange={(e) => set({ title: e.target.value })} />
-      </div>
+      <input className="in" placeholder="عنوان فوق الجدول (اختياري)" value={b.title || ""} onChange={(e) => set({ title: e.target.value || undefined })} />
       {b.items.map((it, i) => {
         const kind = "service" in it ? "service" : "value" in it ? "value" : "amount";
         return (
@@ -324,6 +341,7 @@ function CardEditor({ b, set, pricing }) {
         {isPackage && <label className="f">عنوان سطر قيمة الباقة<input className="in" value={b.subtotal_label || ""} onChange={(e) => set({ subtotal_label: e.target.value || undefined })} /></label>}
         <label className="f">عنوان الإجمالي<input className="in" placeholder="الإجمالي شامل الضريبة" value={b.total_label || ""} onChange={(e) => set({ total_label: e.target.value || undefined })} /></label>
         <label className="f row" style={{ flexDirection: "row" }}><input type="checkbox" checked={b.vat !== false} onChange={(e) => set({ vat: e.target.checked ? undefined : false })} /> يشمل ضريبة القيمة المضافة 15%</label>
+        <label className="f row" style={{ flexDirection: "row" }}><input type="checkbox" checked={!b.brief} onChange={(e) => set({ brief: e.target.checked ? undefined : true })} /> إظهار وصف البنود في الجدول</label>
       </div>
       {totals && <div className="sub">الإجمالي: <b style={{ color: "var(--ink)" }}>{money(totals.total)}</b></div>}
     </div>

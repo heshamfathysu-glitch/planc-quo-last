@@ -1,6 +1,6 @@
 // Turns the wizard answers into a quote document in the master template's
 // structure (pages > blocks), the same JSON make_quote.py reads.
-import { resolveItem, cardTotals, CONTENT_LIMIT } from "../pdf/engine.js";
+import { resolveItem, cardTotals, unitPrice, fmt } from "../pdf/engine.js";
 import { SERVICES, VIDEO_TYPES, DURATIONS, ORDINALS, DEFAULT_TERMS, CLIENT_TYPES } from "../data/catalog.js";
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -42,7 +42,7 @@ export function serviceItems(a, pricing) {
       const dur = s.duration === "custom" ? `${s.minutes || "؟"} دقيقة` : label(DURATIONS, s.duration);
       const priced = vt.pricing && pricing?.services?.[vt.pricing] && ["7-15", "15-30"].includes(s.duration) && !s.price;
       if (priced) out.push({ sid, item: { service: vt.pricing, qty: count }, short: `${count} فيديو ${vt.label.replace("تصوير ", "")}` });
-      else out.push({ sid, item: { title: `تصوير فيديو | ${vt.label.replace("تصوير ", "")}`, desc: `${count} فيديو${dur ? "، المدة " + dur : ""}`, amount: money(s.price) }, short: `${count} فيديو` });
+      else out.push({ sid, item: { title: `تصوير فيديو | ${vt.label.replace("تصوير ", "")}`, desc: `${count} فيديو${dur ? "، المدة " + dur : ""}`, amount: money(s.price) }, short: `${count} فيديو ${vt.label.replace("تصوير ", "")}` });
     } else if (sid === "website") {
       out.push({ sid, item: { title: "تصميم موقع إلكتروني", desc: [s.pages ? `${s.pages} صفحات` : "", s.details].filter(Boolean).join("، "), amount: money(s.price) }, short: "تصميم موقع" });
     } else if (sid === "landing") {
@@ -64,63 +64,65 @@ function stripEmptyDesc(it) {
   return it;
 }
 
-export function cardHeight(card, pricing) {
-  const items = card.items.map((i) => resolveItem(i, pricing));
-  let h = 76;
-  for (const it of items) h += it.desc ? 46 : 34;
-  const t = cardTotals(card, items);
-  const rows = (card.subtotal_label ? 1 : 0) + (t.disc ? 2 : 0) + (card.vat !== false ? 1 : 0);
-  return h - 14 + 26 * rows + 4 + 52;
+// what an item includes: "تصوير محتوى سوشيال ميديا • 30 صورة بسعر 70 ريال للصورة"
+function included(it, pricing) {
+  try { it = resolveItem(it, pricing); } catch { /* no price tier */ }
+  const title = it.title || pricing?.services?.[it.service]?.title || "";
+  return it.desc ? `${title} • ${it.desc}` : title;
 }
 
+// one priced service also shows its unit price after the discount
+function discountLine(disc, items, pricing) {
+  const it = items[0];
+  if (items.length === 1 && "service" in it && !("amount" in it)) {
+    try {
+      const price = it.unit_price || unitPrice(it.service, it.qty, pricing);
+      const unit = (pricing.services[it.service].desc.match(/ريال (لل\S+)/) || [])[1];
+      if (unit) return `خصم ${fmt(disc)}% | سعر ${unit.replace(/^لل/, "ال")} بعد الخصم: ${fmt((price * (100 - disc)) / 100)} ريال`;
+    } catch { /* no price tier */ }
+  }
+  return `خصم ${fmt(disc)}% على قيمة ${items.length > 1 ? "الخدمات" : "الخدمة"}`;
+}
+
+// One page per option (eyebrow, big title, intro, what it includes, the
+// discount, price rows and total, dates), then the terms page with approval.
 export function composeQuote(a, pricing, opts = {}) {
   const client = a.addressedTo || a.partyName || "العميل";
   const parts = serviceItems(a, pricing);
   const disc = Number(a.discount) || 0;
-  const cards = [];
-  if (a.split && parts.length > 1) {
-    parts.forEach((p, i) => cards.push({
-      type: "card", number: pad(i + 1), title: `الخيار ${ORDINALS[i] || i + 1} | ${p.short}`,
-      items: [p.item], ...(disc ? { discount_pct: disc } : {}),
-    }));
-  } else if (parts.length) {
-    const short = parts.length === 1 ? parts[0].short : "باقة الخدمات";
-    cards.push({
-      type: "card", number: "01", title: `الخيار الأول | ${short}`,
-      items: parts.map((p) => p.item), ...(disc ? { discount_pct: disc } : {}),
-    });
-  }
+  const options = a.split && parts.length > 1 ? parts.map((p) => [p]) : parts.length ? [parts] : [];
 
-  const names = [...new Set(parts.map((p) => label(SERVICES, p.sid) || p.short))];
-  const what = names.length ? names.join(" و") : "خدمات إنتاج المحتوى";
+  const customs = parts.filter((p) => p.sid === "custom").length;
+  const names = [...new Set(parts.map((p) => (p.sid !== "custom" ? label(SERVICES, p.sid) || p.short : customs > 1 ? "خدمات مخصصة" : p.short)))];
+  const what = !names.length ? "خدمات إنتاج المحتوى" : names.length > 3 ? `${names[0]} وخدمات أخرى` : names.join(" و");
   const issue = a.issueDate || todayISO();
   const valid = addDays(issue, a.validDays ?? 7);
+  const intro = `يسرنا تقديم عرض سعر لـ${what} بجودة عالية.`;
 
-  // page 1: info + intro + as many cards as fit; the rest move to page 2
-  const first = { title: "عرض سعر رسمي", blocks: [{ type: "info" }, { type: "intro", text: `يسرنا تقديم عرض سعر لـ${what} بجودة عالية.` }] };
-  const pages = [first];
-  let cur = 132 + 18 + 64 + 24, page = first, prev = "intro", hasInfo = true;
-  for (const c of cards) {
-    const gap = prev === "card" && hasInfo ? 16 : prev === null ? 24 : 18;
-    const h = cardHeight(c, pricing);
-    if (cur + gap + h > CONTENT_LIMIT && page.blocks.some((b) => b.type === "card")) {
-      page = { title: "خيارات إضافية", blocks: [] };
-      pages.push(page);
-      cur = 132; prev = null; hasInfo = false;
-    }
-    cur += (prev === null ? 24 : prev === "card" && hasInfo ? 16 : 18) + h;
-    page.blocks.push(c);
-    prev = "card";
-  }
-  if (cur + 22 <= CONTENT_LIMIT) page.blocks.push({ type: "note", text: "جميع الأسعار بالريال السعودي، وموضحة قبل وبعد ضريبة القيمة المضافة 15%." });
+  const pages = options.map((group, i) => {
+    const items = group.map((p) => p.item);
+    const blocks = [{ type: "intro", text: intro }];
+    const lines = items.map((it) => included(it, pricing)).filter(Boolean);
+    if (lines.length) blocks.push({ type: "box", title: "ماذا يشمل هذا الخيار؟", lines });
+    if (disc) blocks.push({ type: "banner", text: discountLine(disc, items, pricing) });
+    blocks.push({ type: "card", brief: true, items, ...(disc ? { discount_pct: disc } : {}) });
+    blocks.push({ type: "dates" });
+    return {
+      eyebrow: options.length > 1 ? `الخيار ${ORDINALS[i] || i + 1}` : "عرض سعر",
+      title: group.length === 1 ? group[0].short : group.length <= 3 ? group.map((p) => p.short).join(" + ") : "باقة الخدمات",
+      blocks,
+    };
+  });
+  if (!pages.length) pages.push({ eyebrow: "عرض سعر", title: what, blocks: [{ type: "intro", text: intro }, { type: "dates" }] });
 
-  const terms = (opts.terms || DEFAULT_TERMS).map((t) => ({ ...t }));
-  if (terms.length) terms[terms.length - 1].text += ` هذا العرض صالح حتى ${fmtDate(valid).replace(/ /g, "")}.`;
-  pages.push({ title: "نطاق التنفيذ والتسليم", blocks: [{ type: "terms", items: terms }, { type: "approval" }] });
+  const day = (iso) => fmtDate(iso).replace(/ /g, "");
+  const terms = (opts.terms || DEFAULT_TERMS).map((t) => ({ title: t.title, text: t.text }));
+  terms.push({ title: "صلاحية العرض", text: `تاريخ الإصدار: ${day(issue)}. العرض صالح حتى ${day(valid)}.` });
+  pages.push({ eyebrow: "تفاصيل التعاون", title: "نطاق التنفيذ والاعتماد", blocks: [{ type: "terms", items: terms }, { type: "approval" }] });
 
   return {
     client,
-    subtitle: `${what} | ${client}`,
+    subtitle: `عرض ${what}`,
     quote_no: quoteNumber(issue, opts.code),
     issue_date: fmtDate(issue),
     valid_until: fmtDate(valid),

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSetting, setSetting, list, put, remove, useCollection, CLOUD } from "../lib/store.js";
 import { createUser, getTeamCode, setTeamCode } from "../lib/firebase.js";
 import { DEFAULT_TERMS } from "../data/catalog.js";
-import { MASTER_THEME } from "../pdf/engine.js";
+import { themeOf } from "../pdf/engine.js";
 import { toast, download, ConfirmButton } from "../ui.jsx";
 import { errorText } from "../lib/notify.js";
 import { useAuth } from "../auth.jsx";
@@ -103,20 +103,23 @@ function Terms() {
 const hex = (rgb) => "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const ROLES = [
-  ["navy", "اللون الرئيسي (الشريط، العناوين، الإجماليات)"],
-  ["ink", "النص الأساسي"],
-  ["muted", "النص الثانوي"],
-  ["line", "الخطوط"],
-  ["head", "رأس الخيار والأرقام"],
-  ["panel", "مربعات البيانات والاعتماد"],
-  ["red", "الخصم"],
+  ["bar", "الشريط العلوي"],
+  ["ink", "النص الأساسي والعناوين"],
+  ["muted", "النص الثانوي والتواريخ"],
+  ["line", "الخطوط وحدود الصناديق"],
+  ["box", "صندوق النقاط ومربع الاعتماد"],
+  ["box2", "الصندوق الأزرق"],
+  ["banner", "خلفية شريط الخصم"],
+  ["bannerInk", "نص شريط الخصم"],
+  ["totalBg", "خلفية الإجمالي"],
+  ["accent", "مبلغ الإجمالي والعناوين الخضراء"],
 ];
 
 function Theme() {
   const saved = useSetting("theme", null);
   const palette = useSetting("palette", []);
   const [th, setTh] = useState(null);
-  const t = { ...MASTER_THEME, ...(th || saved || {}) };
+  const t = themeOf(th || saved); // a theme saved for the earlier template no longer applies
   const [newColor, setNewColor] = useState("#05034d");
 
   return (

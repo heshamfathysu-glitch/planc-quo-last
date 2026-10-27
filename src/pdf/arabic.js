@@ -85,7 +85,7 @@ export function getDisplay(text) {
   return chars.join("");
 }
 
-// same as make_quote.ar(): keep percentages as "25%"
+// same as make_quote.ar()
 export function ar(text) {
-  return getDisplay(reshape(String(text))).replace(/%(\d[\d,.]*)/g, "$1%");
+  return getDisplay(reshape(String(text)));
 }
