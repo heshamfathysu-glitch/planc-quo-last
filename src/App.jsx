@@ -10,14 +10,24 @@ import Login from "./pages/Login.jsx";
 import Home from "./pages/Home.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
-// heavier pages (PDF engine, admin tools) load on first visit
-const Wizard = lazy(() => import("./pages/Wizard.jsx"));
-const Editor = lazy(() => import("./pages/Editor.jsx"));
-const Quotes = lazy(() => import("./pages/Quotes.jsx"));
-const Clients = lazy(() => import("./pages/Clients.jsx"));
-const Companies = lazy(() => import("./pages/Companies.jsx"));
-const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
-const Admin = lazy(() => import("./pages/Admin.jsx"));
+// heavier pages (PDF engine, admin tools) load on first visit. A tab opened
+// before a new release asks for files that are gone: reload once to get them.
+const page = (load) => lazy(() => load().then((m) => {
+  sessionStorage.removeItem("planc:reloaded");
+  return m;
+}, (e) => {
+  if (sessionStorage.getItem("planc:reloaded")) throw e;
+  sessionStorage.setItem("planc:reloaded", "1");
+  location.reload();
+  return new Promise(() => {});
+}));
+const Wizard = page(() => import("./pages/Wizard.jsx"));
+const Editor = page(() => import("./pages/Editor.jsx"));
+const Quotes = page(() => import("./pages/Quotes.jsx"));
+const Clients = page(() => import("./pages/Clients.jsx"));
+const Companies = page(() => import("./pages/Companies.jsx"));
+const Dashboard = page(() => import("./pages/Dashboard.jsx"));
+const Admin = page(() => import("./pages/Admin.jsx"));
 
 const TITLES = [
   ["/new/", "عرض سعر جديد"],
@@ -119,9 +129,26 @@ function Shell({ children }) {
   );
 }
 
+// sign-in check; if it hangs, offer a way out instead of loading forever
+function Starting() {
+  const { logout } = useAuth();
+  const [slow, setSlow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setSlow(true), 12000); return () => clearTimeout(t); }, []);
+  if (!slow) return <Loading />;
+  return (
+    <div className="empty" role="alert" style={{ display: "grid", gap: 14, justifyItems: "center" }}>
+      التحميل يأخذ وقتا أطول من المعتاد. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.
+      <div className="row" style={{ gap: 10 }}>
+        <button className="lq primary" onClick={() => location.reload()}>إعادة المحاولة</button>
+        <button className="lq" onClick={() => Promise.resolve(logout()).finally(() => location.reload())}>تسجيل الخروج</button>
+      </div>
+    </div>
+  );
+}
+
 function Gate() {
   const { user, isAdmin } = useAuth();
-  if (user === undefined) return <Loading />;
+  if (user === undefined) return <Starting />;
   if (!user) return <Login />;
   return (
     <Shell>

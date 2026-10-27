@@ -8,7 +8,7 @@ import { Footer } from "../ui.jsx";
 import { errorText } from "../lib/notify.js";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, notice } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -41,7 +41,7 @@ export default function Login() {
       )}
       <label className="f">البريد الإلكتروني<input className="in" type="email" dir="ltr" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} required={CLOUD} /></label>
       {CLOUD && <label className="f">كلمة المرور<input className="in" type="password" dir="ltr" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>}
-      {err && <div className={err.startsWith("أرسلنا") ? "ok-msg" : "err"} role="alert">{err}</div>}
+      {(err || notice) && <div className={err.startsWith("أرسلنا") ? "ok-msg" : "err"} role="alert">{err || notice}</div>}
       <button className="lq primary" disabled={busy}>{busy ? "جار الدخول..." : "دخول"}</button>
       {CLOUD && (
         <button type="button" className="lq sm" onClick={() => {

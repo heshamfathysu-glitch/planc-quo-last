@@ -10,14 +10,16 @@ const LOCAL_KEY = "planc:me";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined); // undefined = loading
+  const [notice, setNotice] = useState(""); // why a sign-in was refused
 
   useEffect(() => {
-    if (CLOUD) return fb.watchUser(setUser);
+    if (CLOUD) return fb.watchUser((u, why) => { setUser(u); setNotice(why || ""); });
     try { setUser(JSON.parse(localStorage.getItem(LOCAL_KEY)) || null); } catch { setUser(null); }
   }, []);
 
   const value = {
     user,
+    notice,
     isAdmin: user?.role === "admin",
     async login(email, password, name) {
       if (CLOUD) return fb.login(email, password);

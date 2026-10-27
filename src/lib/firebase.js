@@ -33,15 +33,31 @@ export const db = {
   subscribe(col, cb) { return onSnapshot(collection(fs, col), () => cb()); },
 };
 
+// Gives up on a slow network so the app never waits forever.
+const within = (ms, p) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), ms))]);
+
+// cb(user) once sign-in is known; cb(null, why) when an account can't be used.
 export function watchUser(cb) {
   return onAuthStateChanged(auth, async (u) => {
     if (!u) return cb(null);
-    let profile = (await db.get("users", u.uid)) || {};
-    const isAdmin = profile.role === "admin" || (adminEmail && u.email?.toLowerCase() === adminEmail.toLowerCase());
+    const byEmail = !!adminEmail && u.email?.toLowerCase() === adminEmail.toLowerCase();
+    let profile = {};
+    try {
+      profile = (await within(8000, db.get("users", u.uid))) || {};
+    } catch (e) {
+      // an account made outside Admin > Users has no profile, so the rules
+      // refuse it: sign out and say why instead of loading forever
+      if (!byEmail && e?.code === "permission-denied") {
+        await signOut(auth).catch(() => {});
+        return cb(null, "هذا الحساب غير مضاف للموقع بعد. اطلب من المدير إضافته من لوحة التحكم > المستخدمون.");
+      }
+      // offline or slow: open anyway, each page shows its own error
+    }
+    const isAdmin = profile.role === "admin" || byEmail;
     if (isAdmin && !profile.id) {
       // first sign-in of the admin: create the profile so the user list shows it
       profile = { id: u.uid, email: u.email, name: u.email.split("@")[0], role: "admin", createdAt: new Date().toISOString() };
-      await db.put("users", profile);
+      db.put("users", profile).catch(() => {});
     }
     cb({ uid: u.uid, email: u.email, name: profile.name || u.email, role: isAdmin ? "admin" : profile.role || "user" });
   });
