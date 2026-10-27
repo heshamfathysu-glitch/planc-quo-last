@@ -144,14 +144,19 @@ export default function Wizard() {
       </>)}
 
       {key === "services" && (<>
-        <h2>اختر الخدمة</h2>
-        <p className="sub" style={{ marginTop: -14 }}>يمكنك اختيار أكثر من خدمة</p>
+        <h2>اختر الخدمات</h2>
+        <p className="sub" style={{ marginTop: -14 }}>يمكنك اختيار أكثر من خدمة، والخدمة المختارة تظهر باللون الأخضر</p>
         <div className="grid g3">
           {SERVICES.map((s) => {
             const on = (a.services || []).includes(s.id);
             return <Tile key={s.id} on={on} onClick={() => set({ services: on ? a.services.filter((x) => x !== s.id) : [...(a.services || []), s.id] })}><span className="ic">{s.ic}</span>{s.label}</Tile>;
           })}
         </div>
+        {(a.services || []).length > 0 && (
+          <p className="sub picked-sum" aria-live="polite">
+            تم اختيار {a.services.length}: {SERVICES.filter((s) => a.services.includes(s.id)).map((s) => s.label).join("، ")}
+          </p>
+        )}
       </>)}
 
       {key?.startsWith("svc:") && <ServiceStep sid={key.slice(4)} s={a[key.slice(4)] || {}} setSvc={setSvc} pricing={pricing} />}
