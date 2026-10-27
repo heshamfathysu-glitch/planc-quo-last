@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
-import { useSetting, setSetting, list, put, remove, useCollection, CLOUD, DEMO } from "../lib/store.js";
-import { createUser } from "../lib/firebase.js";
+import { useEffect, useRef, useState } from "react";
+import { useSetting, setSetting, list, put, remove, useCollection, CLOUD } from "../lib/store.js";
+import { createUser, getTeamCode, setTeamCode } from "../lib/firebase.js";
 import { DEFAULT_TERMS } from "../data/catalog.js";
 import { MASTER_THEME } from "../pdf/engine.js";
 import { toast, download, ConfirmButton } from "../ui.jsx";
@@ -159,7 +159,7 @@ function Users() {
   const [users] = useCollection("users");
   const [f, setF] = useState({ role: "user" });
   const [err, setErr] = useState("");
-  if (!CLOUD) return <div className="card sub">{DEMO ? "إدارة المستخدمين غير متاحة في الدخول التجريبي. ادخل بحسابك لإدارتهم." : "إدارة المستخدمين تعمل بعد ربط Firebase. حاليا الدخول تجريبي على هذا المتصفح فقط."}</div>;
+  if (!CLOUD) return <div className="card sub">إدارة المستخدمين تعمل بعد ربط Firebase. حاليا الدخول تجريبي على هذا المتصفح فقط.</div>;
   async function add(e) {
     e.preventDefault(); setErr("");
     try { await createUser(f); setF({ role: "user" }); toast("تمت إضافة المستخدم"); }
@@ -167,6 +167,8 @@ function Users() {
   }
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <TeamAccess />
+      <p className="sub" style={{ margin: "8px 0 0" }}>حسابات بالبريد وكلمة المرور (للمدير أو من يدخل لوحة التحكم)</p>
       <form className="card grid g4" onSubmit={add}>
         <input className="in" aria-label="الاسم" placeholder="الاسم" value={f.name || ""} onChange={(e) => setF({ ...f, name: e.target.value })} required />
         <input className="in" type="email" dir="ltr" aria-label="البريد" autoComplete="off" placeholder="البريد" value={f.email || ""} onChange={(e) => setF({ ...f, email: e.target.value })} required />
@@ -192,6 +194,62 @@ function Users() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// Team members enter with their name and this one code, no accounts.
+function TeamAccess() {
+  const { user } = useAuth();
+  const [members] = useCollection("members");
+  const [code, setCode] = useState("");
+  const [saved, setSaved] = useState(null);
+  const [show, setShow] = useState(false);
+  useEffect(() => { getTeamCode().then((c) => { setSaved(c); setCode((cur) => cur || c); }, () => setSaved("")); }, []);
+  async function save(e) {
+    e.preventDefault();
+    const c = code.trim();
+    if (c.length < 4) return toast("اجعل الرمز 4 أحرف أو أرقام على الأقل.", "error");
+    try { await setTeamCode(c); setSaved(c); toast("تم حفظ رمز الفريق"); } catch (x) { toast(errorText(x), "error"); }
+  }
+  async function signOutAll() {
+    for (const m of members || []) await remove("members", m.id);
+    toast("تم إخراج الجميع. يدخلون من جديد بالرمز الحالي.");
+  }
+  const sorted = [...(members || [])].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  return (
+    <div className="card" style={{ display: "grid", gap: 14 }}>
+      <form className="row" style={{ gap: 10, flexWrap: "wrap", alignItems: "end" }} onSubmit={save}>
+        <label className="f" style={{ flex: "1 1 220px" }}>رمز دخول الفريق
+          <span className="sub">يكتبه كل شخص مع اسمه مرة واحدة على جهازه. من لا يعرفه لا يرى شيئا.</span>
+          <input className="in" dir="ltr" type={show ? "text" : "password"} autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} placeholder={saved === "" ? "لم يُحدد بعد" : ""} />
+        </label>
+        <button type="button" className="lq" onClick={() => setShow(!show)}>{show ? "إخفاء" : "إظهار"}</button>
+        <button className="lq primary" disabled={code.trim() === (saved || "")}>حفظ الرمز</button>
+      </form>
+      {saved === "" && <div className="warn">لم يُحدد رمز بعد، لذلك لا يستطيع أحد الدخول بالاسم. اكتب رمزا واحفظه.</div>}
+      <div className="row" style={{ gap: 10 }}>
+        <b>دخلوا بالاسم ({sorted.length})</b>
+        <span className="spacer" />
+        {sorted.length > 0 && <ConfirmButton className="lq sm danger" ask="اضغط مرة أخرى لإخراج الجميع" onConfirm={signOutAll}>إخراج الجميع</ConfirmButton>}
+      </div>
+      {sorted.length > 0 && (
+        <div className="tablewrap">
+          <table className="t cards">
+            <thead><tr><th>الاسم</th><th>تاريخ الدخول</th><th></th></tr></thead>
+            <tbody>
+              {sorted.map((m) => (
+                <tr key={m.id}>
+                  <td className="lead">{m.name}</td>
+                  <td className="sub">{String(m.createdAt || "").slice(0, 10)}</td>
+                  <td className="end"><button className="lq sm danger" onClick={() => remove("members", m.id).then(() => toast(`تم إخراج ${m.name}`), () => {})} disabled={m.id === user.uid}>إخراج</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="sub" style={{ margin: 0 }}>لإبعاد شخص: غيّر الرمز ثم اضغط «إخراج الجميع»، فيدخل الباقون بالرمز الجديد.</p>
     </div>
   );
 }

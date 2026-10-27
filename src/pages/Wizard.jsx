@@ -77,6 +77,7 @@ export default function Wizard() {
 
   async function finish() {
     if (busy) return;
+    clearTimeout(timer.current); // a pending autosave would overwrite the finished quote
     setBusy(true);
     try { await build(); } catch { /* the store already showed the error */ } finally { setBusy(false); }
   }

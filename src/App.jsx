@@ -1,12 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { HashRouter, Routes, Route, NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth.jsx";
-import { CLOUD, DEMO } from "./lib/store.js";
+import { CLOUD } from "./lib/store.js";
 import { Toaster, Loading, Footer } from "./ui.jsx";
 import { createDraft } from "./lib/newQuote.js";
 import { THEME, LOGO, BACKGROUND } from "./theme.js";
 import NeatBackground from "./NeatBackground.jsx";
-import Login from "./pages/Login.jsx";
+import Login, { AdminLogin } from "./pages/Login.jsx";
 import Home from "./pages/Home.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
@@ -57,7 +57,7 @@ const I = {
   more: "M4 6h16M4 12h16M4 18h16",
 };
 
-function BottomNav({ isAdmin, user, logout }) {
+function BottomNav({ user, logout }) {
   const nav = useNavigate();
   const loc = useLocation();
   const [open, setOpen] = useState(false);
@@ -90,8 +90,8 @@ function BottomNav({ isAdmin, user, logout }) {
             <div className="user">{user.name}</div>
             <NavLink to="/companies" onClick={close}>شركات التسويق والإنتاج</NavLink>
             <NavLink to="/dashboard" onClick={close}>الملخص</NavLink>
-            {isAdmin && <NavLink to="/admin" onClick={close}>لوحة التحكم</NavLink>}
-            <button className="item danger" onClick={logout}>{DEMO ? "إنهاء التجربة" : "تسجيل الخروج"}</button>
+            <NavLink to="/admin" onClick={close}>لوحة التحكم</NavLink>
+            <button className="item danger" onClick={logout}>تسجيل الخروج</button>
           </div>
         </>
       )}
@@ -100,7 +100,7 @@ function BottomNav({ isAdmin, user, logout }) {
 }
 
 function Shell({ children }) {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const loc = useLocation();
   const focus = loc.pathname.startsWith("/new/");
   usePageTitle(loc.pathname);
@@ -114,16 +114,16 @@ function Shell({ children }) {
           <NavLink to="/clients">العملاء</NavLink>
           <NavLink to="/companies">شركات التسويق والإنتاج</NavLink>
           <NavLink to="/dashboard">الملخص</NavLink>
-          {isAdmin && <NavLink to="/admin">لوحة التحكم</NavLink>}
+          <NavLink to="/admin">لوحة التحكم</NavLink>
         </nav>
         <div className="who">
-          {!CLOUD && <span className="badge st-expired">{DEMO ? "دخول تجريبي" : "وضع تجريبي"}</span>}
+          {!CLOUD && <span className="badge st-expired">وضع تجريبي</span>}
           <span className="name">{user.name}</span>
-          <button className="lq sm" onClick={logout}>{DEMO ? "إنهاء التجربة" : "خروج"}</button>
+          <button className="lq sm" onClick={logout}>خروج</button>
         </div>
       </header>
       <main id="main"><Suspense fallback={<Loading />}>{children}</Suspense><Footer /></main>
-      <BottomNav isAdmin={isAdmin} user={user} logout={logout} />
+      <BottomNav user={user} logout={logout} />
       <Toaster />
     </div>
   );
@@ -148,8 +148,9 @@ function Starting() {
 
 function Gate() {
   const { user, isAdmin } = useAuth();
+  const loc = useLocation();
   if (user === undefined) return <Starting />;
-  if (!user) return <Login />;
+  if (!user) return loc.pathname.startsWith("/admin") ? <AdminLogin alone /> : <Login />;
   return (
     <Shell>
       <Routes>
@@ -160,7 +161,7 @@ function Gate() {
         <Route path="/clients" element={<Clients />} />
         <Route path="/companies" element={<Companies />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        {isAdmin && <Route path="/admin" element={<Admin />} />}
+        <Route path="/admin" element={isAdmin ? <Admin /> : <AdminLogin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Shell>

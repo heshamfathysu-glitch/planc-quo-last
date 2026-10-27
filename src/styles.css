@@ -522,8 +522,8 @@ body { background: transparent; }
 .hero .warn { color: #ffd48a; text-shadow: var(--on-bg-shadow); }
 .hero a:not(.lq), main > .empty a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
 .hero .lq.primary, .wiz .nav .lq.primary { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28), 0 8px 24px rgba(0, 0, 0, 0.25); }
-.demo-entry { display: grid; gap: 8px; text-align: center; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
-.demo-entry .small { font-size: 12px; }
+.alt-entry { text-align: center; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; font-size: 14px; }
+.alt-entry a { color: inherit; font-weight: 700; text-underline-offset: 3px; }
 
 /* ---------- frosted glass controls and panels (theme "glass") ---------- */
 :root[data-theme="glass"] .lq,

@@ -1,23 +1,37 @@
 rules_version = '2';
-// Only signed-in team members can read or write. Prices, settings and users
-// can be changed by the admin only. Admin: hesham@digitalplanc.com
+// Team members enter with their name and the team code (anonymous sign-in);
+// only the dashboard uses email and password. Prices, settings, users and the
+// team code can be changed by the admin only. Admin: hesham@digitalplanc.com
 service cloud.firestore {
   match /databases/{db}/documents {
     function signedIn() { return request.auth != null; }
     function isAdmin() {
       return signedIn() && (
-        request.auth.token.email.lower() == 'hesham@digitalplanc.com' ||
+        request.auth.token.get('email', '').lower() == 'hesham@digitalplanc.com' ||
         (exists(/databases/$(db)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
     function member() {
-      return isAdmin() || (signedIn() && exists(/databases/$(db)/documents/users/$(request.auth.uid)));
+      return isAdmin() || (signedIn() && (
+        exists(/databases/$(db)/documents/users/$(request.auth.uid)) ||
+        exists(/databases/$(db)/documents/members/$(request.auth.uid))));
     }
 
     match /quotes/{id}    { allow read, write: if member(); }
     match /clients/{id}   { allow read, write: if member(); }
     match /companies/{id} { allow read, write: if member(); }
     match /settings/{id}  { allow read: if member(); allow write: if isAdmin(); }
-    match /users/{uid}    { allow read: if member(); allow write: if isAdmin(); }
+    match /users/{uid}    { allow read: if isAdmin() || (signedIn() && request.auth.uid == uid); allow write: if isAdmin(); }
+
+    // someone entering with a name joins only if they typed the team code
+    match /members/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.name is string && request.resource.data.name.size() > 0
+        && request.resource.data.code == get(/databases/$(db)/documents/access/team).data.code;
+      allow delete: if isAdmin();
+    }
+    // the team code itself: only the admin can see or change it
+    match /access/{id} { allow read, write: if isAdmin(); }
   }
 }

@@ -1,13 +1,16 @@
 // Data layer. Uses Firestore when src/firebaseConfig.js has a config,
-// otherwise (or in the direct trial, see demo.js) the browser's localStorage.
+// otherwise the browser's localStorage.
 import { useEffect, useState, useCallback } from "react";
 import { firebaseConfig } from "../firebaseConfig.js";
 import * as fb from "./firebase.js";
 import { fail } from "./notify.js";
-import { DEMO } from "./demo.js";
 
-export const CLOUD = !!firebaseConfig && !DEMO;
-export { DEMO };
+export const CLOUD = !!firebaseConfig;
+
+// the direct-trial entry was removed: drop the sign-in it left in browsers
+try {
+  if (localStorage.getItem("planc:demo")) { localStorage.removeItem("planc:demo"); localStorage.removeItem("planc:me"); }
+} catch { /* storage blocked */ }
 
 const now = () => new Date().toISOString();
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
