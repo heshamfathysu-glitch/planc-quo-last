@@ -7,6 +7,7 @@
 // defaults are the reference values.
 import { jsPDF } from "jspdf";
 import { ar } from "./arabic.js";
+import ICONS from "./icons.json";
 
 // Text arrives already shaped and in visual order (see arabic.js). jsPDF's own
 // Arabic parser would shape it a second time and break lam-alef pairs.
@@ -42,6 +43,27 @@ const TEXT_DESCENT = 11.45;
 const INTRO_W = 345;
 const TERMS_GAP = 50.68; // last body line of a term to the next heading
 const VAT_RATE = 15;
+const WHITE = [255, 255, 255];
+
+// icon picked from the words of a title when none is set
+const ICON_WORDS = [
+  ["نطاق", "target"], ["خصم", "percent"], ["ضريب", "percent"], ["جاهز", "calendar"], ["جدول", "calendar"],
+  ["موعد", "calendar"], ["تسليم", "package"], ["تعديل", "refresh"], ["دفع", "wallet"], ["سداد", "wallet"],
+  ["استخدام", "wallet"], ["صلاحي", "clock"], ["اعتماد", "pen"], ["تصوير", "camera"], ["فيديو", "video"],
+  ["موقع", "layout"], ["باقة", "package"],
+];
+export const pickIcon = (icon, text, fallback) => icon || (ICON_WORDS.find(([w]) => String(text || "").includes(w)) || [])[1] || fallback;
+export const ICON_NAMES = Object.keys(ICONS).filter((k) => k !== "_");
+
+// points along an arc on the icon grid (degrees, y down)
+function arcPoints(cx, cy, r, a0, a1) {
+  const pts = [];
+  for (let i = 0; i <= 24; i++) {
+    const a = ((a0 + ((a1 - a0) * i) / 24) * Math.PI) / 180;
+    pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  }
+  return pts;
+}
 
 // how each block starts and ends: text blocks sit on baselines (font size),
 // boxes on their edges
@@ -204,6 +226,30 @@ class Quote {
     c.rect(x, top, w, h, stroke ? "FD" : "F");
   }
 
+  // line icon centred on (cx, cy), optionally on a round badge of radius br
+  icon(name, cx, cy, size, color, badge, br) {
+    const ops = ICONS[name];
+    if (this.dry || !ops || name === "_") return;
+    const c = this.c, k = size / 24, x0 = cx - size / 2, y0 = cy - size / 2;
+    const X = (x) => x0 + x * k, Y = (y) => y0 + y * k;
+    if (badge) { c.setFillColor(...badge); c.circle(cx, cy, br, "F"); }
+    c.setDrawColor(...color);
+    c.setFillColor(...color);
+    c.setLineWidth(2 * k);
+    c.setLineCap("round");
+    c.setLineJoin("round");
+    for (const [op, a] of ops) {
+      if (op === "l" || op === "a") {
+        const pts = op === "l" ? a : arcPoints(...a);
+        for (let i = 1; i < pts.length; i++) c.line(X(pts[i - 1][0]), Y(pts[i - 1][1]), X(pts[i][0]), Y(pts[i][1]));
+      } else if (op === "c") c.circle(X(a[0]), Y(a[1]), a[2] * k, "S");
+      else if (op === "d") c.circle(X(a[0]), Y(a[1]), a[2] * k, "F");
+      else if (op === "r") c.roundedRect(X(a[0]), Y(a[1]), a[2] * k, a[3] * k, a[4] * k, a[4] * k, "S");
+    }
+    c.setLineCap("butt");
+    c.setLineJoin("miter");
+  }
+
   pageFrame(page, n, total) {
     const c = this.c, t = this.t, d = this.d;
     this.rect(0, 0, PW, 8, t.bar, false);
@@ -225,38 +271,50 @@ class Quote {
   // ---- blocks: each takes where it starts (baseline or top edge) and returns
   // { end, gaps } with gaps = its own flexible spaces at natural size ----
   intro(base, b) { return this.para(base, b.text, 17, 25.5, INTRO_W, this.t.ink); }
-  note(base, b) { return this.para(base, b.text, 13, 19.5, CW, this.t.muted); }
+  note(base, b) {
+    this.icon(b.icon || "info", 550.5, base - 4.5, 13, this.t.muted);
+    return this.para(base, b.text, 13, 19.5, CW - 20, this.t.muted, MR - 20);
+  }
   dates(base, b) {
     const day = (s) => String(s || "").replace(/\s*\/\s*/g, "/");
     const text = b.text || `الإصدار: ${day(this.d.issue_date)} | صالح حتى: ${day(this.d.valid_until)}`;
-    return this.para(base, text, 11, 16.5, CW, this.t.muted);
+    this.icon("calendar", 551, base - 3.8, 12, this.t.muted);
+    return this.para(base, text, 11, 16.5, CW - 18, this.t.muted, MR - 18);
   }
 
-  para(base, text, size, lead, maxW, color) {
+  para(base, text, size, lead, maxW, color, x = MR) {
     const lines = this.wrap(text, size, maxW);
-    lines.forEach((l, i) => this.text(MR, base + lead * i, l, size, color));
+    lines.forEach((l, i) => this.text(x, base + lead * i, l, size, color));
     return { end: base + lead * Math.max(lines.length - 1, 0), gaps: [] };
   }
 
   box(top, b) {
     const t = this.t;
-    const lines = (Array.isArray(b.lines) ? b.lines : String(b.lines || "").split("\n")).flatMap((l) => this.wrap(l, 16, 481));
+    const lines = (Array.isArray(b.lines) ? b.lines : String(b.lines || "").split("\n")).flatMap((l) => this.wrap(l, 16, 448));
     const compact = lines.length <= 1;
     const tb = top + (compact ? 26.9 : 31.9);
     const first = b.title ? tb + (compact ? 32.9 : 37.9) : tb;
     const last = lines.length ? first + 24 * (lines.length - 1) : tb;
     const bottom = last + (lines.length > 1 ? 22.2 : 20.2);
     this.rect(ML, top, CW, bottom - top, b.tone === "blue" ? t.box2 : t.box);
-    if (b.title) this.text(538, tb, b.title, 18, t.ink);
-    lines.forEach((l, i) => this.text(538, first + 24 * i, l, 16, t.ink));
+    // icon on a white badge beside the title, a green check before each point
+    if (b.title) {
+      this.icon(pickIcon(b.icon, b.title, "list"), 526, tb - 6.2, 14, t.ink, WHITE, 12);
+      this.text(505, tb, b.title, 18, t.ink);
+    }
+    lines.forEach((l, i) => {
+      if (b.marks !== false) this.icon("check", 526, first + 24 * i - 5.3, 14, t.accent);
+      this.text(505, first + 24 * i, l, 16, t.ink);
+    });
     return { end: bottom, gaps: [] };
   }
 
   banner(top, b) {
-    const lines = this.wrap(b.text, 16, 489);
+    const lines = this.wrap(b.text, 16, 456);
     const h = 43 + 22 * Math.max(lines.length - 1, 0);
     this.rect(ML, top, CW, h, this.t.banner);
-    lines.forEach((l, i) => this.text(542, top + 24.8 + 22 * i, l, 16, this.t.bannerInk));
+    this.icon(b.icon || (/خصم|%/.test(b.text || "") ? "percent" : "info"), 530, top + 19.5, 14, this.t.bannerInk, WHITE, 12);
+    lines.forEach((l, i) => this.text(509, top + 24.8 + 22 * i, l, 16, this.t.bannerInk));
     return { end: top + h, gaps: [] };
   }
 
@@ -311,9 +369,11 @@ class Quote {
     let y = base, last = base;
     items.forEach((it, i) => {
       if (i) y = last + ctx.adj(TERMS_GAP);
-      this.text(MR, y, it.title, 17, i % 2 ? t.accent : t.ink, "right", this.emph());
-      const lines = this.wrap(it.text, 13.5, CW);
-      lines.forEach((l, j) => this.text(MR, y + 27.32 + 20.25 * j, l, 13.5, t.ink));
+      const color = i % 2 ? t.accent : t.ink;
+      this.icon(pickIcon(it.icon, it.title, "check"), 545, y - 6, 14, color, i % 2 ? t.totalBg : t.box, 12);
+      this.text(524, y, it.title, 17, color, "right", this.emph());
+      const lines = this.wrap(it.text, 13.5, 486);
+      lines.forEach((l, j) => this.text(524, y + 27.32 + 20.25 * j, l, 13.5, t.ink));
       last = lines.length ? y + 27.32 + 20.25 * (lines.length - 1) : y;
     });
     return { end: last, gaps: items.slice(1).map(() => TERMS_GAP) };
@@ -322,8 +382,9 @@ class Quote {
   approval(top) {
     const t = this.t;
     this.rect(ML, top, CW, 64, t.box);
-    this.text(542, top + 21.75, "اعتماد العرض", 15, t.ink);
-    this.text(542, top + 48.6, "الخيار: ______________ الاسم والتاريخ: ______________", 12, t.ink);
+    this.icon("pen", 530, top + 16, 14, t.ink, WHITE, 12);
+    this.text(509, top + 21.75, "اعتماد العرض", 15, t.ink);
+    this.text(509, top + 48.6, "الخيار: ______________ الاسم والتاريخ: ______________", 12, t.ink);
     return { end: top + 64, gaps: [] };
   }
 

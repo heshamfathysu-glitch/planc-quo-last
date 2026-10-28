@@ -22,6 +22,20 @@ const BLOCK_TYPES = [
   { type: "chart", label: "رسم بياني من أرقام" },
   { type: "approval", label: "مربع الاعتماد" },
 ];
+// icons drawn in the PDF (src/pdf/icons.json); "" picks one from the title
+const ICONS = [
+  ["", "أيقونة تلقائية"], ["list", "قائمة"], ["check", "علامة صح"], ["target", "نطاق"], ["camera", "تصوير"],
+  ["video", "فيديو"], ["layout", "موقع"], ["calendar", "مواعيد"], ["clock", "وقت"], ["percent", "خصم"],
+  ["info", "معلومة"], ["package", "تسليم"], ["refresh", "تعديلات"], ["wallet", "دفع"], ["pen", "توقيع"], ["none", "بدون أيقونة"],
+];
+function IconSelect({ value, set }) {
+  return (
+    <select className="in auto" aria-label="الأيقونة" value={value || ""} onChange={(e) => set(e.target.value || undefined)}>
+      {ICONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+    </select>
+  );
+}
+
 // quotes made before the large-type template may still hold an info block
 const blockLabel = (t) => (t === "info" ? "سطر التواريخ" : BLOCK_TYPES.find((b) => b.type === t)?.label || t);
 
@@ -215,8 +229,14 @@ export default function Editor() {
 }
 
 function BlockEditor({ b, set, pricing, termsLib }) {
-  if (b.type === "intro" || b.type === "note" || b.type === "banner") {
-    return <textarea className="in" rows={2} value={b.text} onChange={(e) => set({ text: e.target.value })} />;
+  if (b.type === "intro") return <textarea className="in" rows={2} value={b.text} onChange={(e) => set({ text: e.target.value })} />;
+  if (b.type === "note" || b.type === "banner") {
+    return (
+      <div style={{ display: "grid", gap: 8 }}>
+        <textarea className="in" rows={2} value={b.text} onChange={(e) => set({ text: e.target.value })} />
+        <div className="row"><IconSelect value={b.icon} set={(icon) => set({ icon })} /></div>
+      </div>
+    );
   }
   if (b.type === "box") {
     return (
@@ -227,8 +247,10 @@ function BlockEditor({ b, set, pricing, termsLib }) {
             <option value="">بنفسجي فاتح</option>
             <option value="blue">أزرق فاتح</option>
           </select>
+          <IconSelect value={b.icon} set={(icon) => set({ icon })} />
         </div>
         <textarea className="in" rows={3} placeholder="كل سطر نقطة" value={(b.lines || []).join("\n")} onChange={(e) => set({ lines: e.target.value.split("\n") })} />
+        <label className="row sub"><input type="checkbox" checked={b.marks !== false} onChange={(e) => set({ marks: e.target.checked ? undefined : false })} /> علامة صح خضراء أمام كل نقطة</label>
       </div>
     );
   }
@@ -243,6 +265,7 @@ function BlockEditor({ b, set, pricing, termsLib }) {
             <div className="row">
               <span className="badge">{String(i + 1).padStart(2, "0")}</span>
               <input className="in auto" style={{ flex: 1 }} placeholder="العنوان" value={it.title} onChange={(e) => upd(i, { title: e.target.value })} />
+              <IconSelect value={it.icon} set={(icon) => upd(i, { icon })} />
               <button className="lq icon sm" onClick={() => set({ items: move(b.items, i, -1) })}>↑</button>
               <button className="lq icon sm danger" onClick={() => set({ items: b.items.filter((_, j) => j !== i) })}>×</button>
             </div>

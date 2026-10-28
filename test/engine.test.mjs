@@ -1,5 +1,5 @@
 import fs from "fs";
-import { buildQuote } from "../src/pdf/engine.js";
+import { buildQuote, pickIcon } from "../src/pdf/engine.js";
 import { composeQuote } from "../src/lib/compose.js";
 
 const rd = (p) => new Uint8Array(fs.readFileSync(p));
@@ -14,4 +14,9 @@ if (shape !== "عرض سعر/intro,box,banner,card,dates تفاصيل التعا
 const { doc, warnings } = buildQuote(data, assets, pricing, { titleWeight: "bold" });
 const pages = doc.getNumberOfPages();
 if (pages !== 2 || warnings.length) throw new Error(`pages=${pages} warnings=${JSON.stringify(warnings)}`);
+// icons follow the words of a title unless one is set
+for (const [t, want] of [["نطاق العمل", "target"], ["التسليم والتعديلات", "package"], ["الاستخدام والدفع والاعتماد", "wallet"], ["صلاحية العرض", "clock"], ["عنوان آخر", "check"]]) {
+  if (pickIcon(undefined, t, "check") !== want) throw new Error(`icon for ${t}: ${pickIcon(undefined, t, "check")}`);
+}
+if (pickIcon("pen", "نطاق العمل", "check") !== "pen") throw new Error("explicit icon ignored");
 console.log("engine: ok,", pages, "pages");
