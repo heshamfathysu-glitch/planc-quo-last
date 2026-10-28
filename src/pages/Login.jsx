@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { CLOUD } from "../lib/store.js";
 import { resetPassword } from "../lib/firebase.js";
-import { LOGO } from "../theme.js";
+import { logoNavy, logoWhite } from "../theme.js";
 import { Footer } from "../ui.jsx";
 import { errorText } from "../lib/notify.js";
 
@@ -34,7 +34,8 @@ export default function Login() {
   return (
     <>
     <form className="login card" onSubmit={submit}>
-      <img src={LOGO} alt="PLAN C" width="129" height="60" />
+      <img className="logo-on-light" src={logoNavy} alt="PLAN C" width="129" height="60" />
+      <img className="logo-on-dark" src={logoWhite} alt="" width="129" height="60" />
       <h1>عروض أسعار PLAN C</h1>
       {!CLOUD && <p className="sub" style={{ textAlign: "center", margin: 0 }}>وضع تجريبي: البيانات تحفظ في هذا المتصفح فقط حتى يُربط Firebase.</p>}
       <label className="f">اسمك<input className="in" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required /></label>
@@ -66,7 +67,8 @@ export function AdminLogin({ alone }) {
 
   const form = (
     <form className="login card" onSubmit={submit}>
-      <img src={LOGO} alt="PLAN C" width="129" height="60" />
+      <img className="logo-on-light" src={logoNavy} alt="PLAN C" width="129" height="60" />
+      <img className="logo-on-dark" src={logoWhite} alt="" width="129" height="60" />
       <h1>لوحة التحكم</h1>
       <p className="sub" style={{ textAlign: "center", margin: 0 }}>للمدير فقط: ادخل بالبريد وكلمة المرور.</p>
       {user?.email && <div className="err" role="alert">هذا الحساب ليس حساب مدير.</div>}

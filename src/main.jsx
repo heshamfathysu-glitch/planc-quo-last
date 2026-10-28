@@ -4,6 +4,10 @@ import "./styles.css";
 import App from "./App.jsx";
 import { toast, errorText } from "./lib/notify.js";
 import "./lib/press.js";
+import { THEME } from "./theme.js";
+
+// set the saved light/dark choice before the first paint
+document.documentElement.dataset.theme = THEME;
 
 // any failed action that nobody handled still gets a clear message
 window.addEventListener("unhandledrejection", (e) => {
