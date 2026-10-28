@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from "./auth.jsx";
 import { CLOUD } from "./lib/store.js";
 import { Toaster, Loading, Footer } from "./ui.jsx";
 import { createDraft } from "./lib/newQuote.js";
-import { THEME, LOGO, BACKGROUND } from "./theme.js";
+import { THEME, LOGO, BACKGROUND, SHOW_BACKGROUND, setTheme } from "./theme.js";
 import NeatBackground from "./NeatBackground.jsx";
 import Login, { AdminLogin } from "./pages/Login.jsx";
 import Home from "./pages/Home.jsx";
@@ -55,7 +55,21 @@ const I = {
   plus: "M12 5v14M5 12h14",
   clients: "M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
   more: "M4 6h16M4 12h16M4 18h16",
+  sun: "M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
+  moon: "M20 15A9 9 0 0 1 9 4a9 9 0 1 0 11 11",
 };
+
+// light / dark switch from the UI kit; each browser remembers its choice
+function ThemeToggle() {
+  const [theme, set] = useState(THEME);
+  const dark = theme === "kit-dark";
+  const flip = () => { const t = dark ? "kit-light" : "kit-dark"; setTheme(t); set(t); };
+  return (
+    <button className="lq sm icon theme-toggle" onClick={flip} aria-label={dark ? "الوضع الفاتح" : "الوضع الداكن"} title={dark ? "الوضع الفاتح" : "الوضع الداكن"}>
+      <Icon d={dark ? I.sun : I.moon} />
+    </button>
+  );
+}
 
 function BottomNav({ user, logout }) {
   const nav = useNavigate();
@@ -119,6 +133,7 @@ function Shell({ children }) {
         <div className="who">
           {!CLOUD && <span className="badge st-expired">وضع تجريبي</span>}
           <span className="name">{user.name}</span>
+          {THEME.startsWith("kit") && <ThemeToggle />}
           <button className="lq sm" onClick={logout}>خروج</button>
         </div>
       </header>
@@ -172,9 +187,9 @@ export default function App() {
   useEffect(() => { document.documentElement.dataset.theme = THEME; }, []);
   return (
     <AuthProvider>
-      {BACKGROUND === "neat" ? <NeatBackground /> : (
+      {SHOW_BACKGROUND && (BACKGROUND === "neat" ? <NeatBackground /> : (
         <div className="photo-bg" aria-hidden="true"><i className="bg-blue" /><i className="bg-orange" /><i className="bg-green" /></div>
-      )}
+      ))}
       <HashRouter>
         <Gate />
       </HashRouter>
