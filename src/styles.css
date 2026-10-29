@@ -784,3 +784,27 @@ body { background: transparent; }
 }
 :root[data-theme="kit-dark"] .st-sent { color: #9fc7ff; background: rgba(80, 140, 255, 0.18); }
 :root[data-theme="kit-dark"] table.t tbody tr:hover td { background: var(--surface-2); }
+
+/* ---------- price guide in the wizard (team only, never in the PDF) ---------- */
+.guide { margin-top: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 4px 18px 14px; }
+.guide summary { cursor: pointer; font-weight: 700; color: var(--ink); padding: 12px 0 6px; list-style-position: inside; }
+.guide summary small { font-weight: 400; color: var(--muted); font-size: 12px; margin-inline-start: 8px; }
+.guide-sec + .guide-sec { margin-top: 10px; }
+.guide-sec > b { display: block; font-size: 14px; margin: 6px 0 2px; color: var(--ink); }
+.guide ul { list-style: none; margin: 0; padding: 0; }
+.guide li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--ink); }
+.guide li:last-child { border-bottom: 0; }
+.guide li small { display: block; color: var(--muted); font-size: 12px; }
+.guide li .range { white-space: nowrap; text-align: end; font-weight: 700; }
+.guide li.cost { color: var(--muted); }
+.guide li.cost .range { font-weight: 400; }
+:root[data-theme^="kit"] .guide { border: 0; border-radius: 0; clip-path: var(--cut); box-shadow: inset 0 0 0 1px var(--line); border-inline-start: 0; }
+:root[data-theme^="kit"] .guide summary { color: var(--heading); }
+:root[data-theme^="kit"] .guide summary::marker { color: var(--orange); }
+:root[data-theme^="kit"] .guide li .range { font-weight: 500; color: var(--heading); }
+:root[data-theme^="kit"] .guide li .nums { font-family: "Plex Mono", "Plex Arabic", monospace; }
+:root[data-theme^="kit"] .guide li.cost .range { color: var(--muted); font-weight: 400; }
+@media (max-width: 760px) {
+  .guide li { flex-direction: column; gap: 2px; }
+  .guide li .range { text-align: start; }
+}
