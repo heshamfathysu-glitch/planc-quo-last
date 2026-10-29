@@ -9,6 +9,7 @@ import { useAuth } from "../auth.jsx";
 
 const TABS = [
   { id: "pricing", label: "قائمة الأسعار" },
+  { id: "guide", label: "دليل الأسعار" },
   { id: "terms", label: "مكتبة الشروط" },
   { id: "theme", label: "الألوان والخط" },
   { id: "users", label: "المستخدمون" },
@@ -24,6 +25,7 @@ export default function Admin() {
         {TABS.map((t) => <button key={t.id} className={`tab${tab === t.id ? " on" : ""}`} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
       {tab === "pricing" && <Pricing />}
+      {tab === "guide" && <Guide />}
       {tab === "terms" && <Terms />}
       {tab === "theme" && <Theme />}
       {tab === "users" && <Users />}
@@ -70,6 +72,67 @@ function Pricing() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+const SERVICE_TITLES = { photo: "تصوير فوتوغرافي", video: "تصوير فيديو", website: "موقع إلكتروني", landing: "صفحة هبوط", consult: "استشارة تسويقية", identity: "هوية بصرية", accounts: "إدارة حسابات السوشيال ميديا", package: "باقة مخصصة" };
+
+// price ranges the team sees while making a quote (Wizard.jsx PriceGuide)
+function Guide() {
+  const saved = useSetting("priceGuide", null);
+  const ref = useRef();
+  const [draft, setDraft] = useState(null);
+  const g = draft || saved || { v: 1, sections: [] };
+
+  async function load(file) {
+    try {
+      const j = JSON.parse(await file.text());
+      if (!Array.isArray(j.sections)) throw new Error();
+      await setSetting("priceGuide", j);
+      setDraft(null);
+      toast("تم تحميل دليل الأسعار");
+    } catch (e) { if (!e?.notified) toast("الملف غير صالح. يجب أن يكون price-guide.json فيه أقسام الخدمات.", "error"); }
+  }
+  const secOf = (sid) => g.sections.find((x) => x.service === sid);
+  const setItems = (sid, items) => {
+    const has = secOf(sid);
+    const sections = has
+      ? g.sections.map((x) => (x.service === sid ? { ...x, items } : x))
+      : [...g.sections, { service: sid, title: SERVICE_TITLES[sid], items }];
+    setDraft({ ...g, sections });
+  };
+  const numOrNull = (v) => (v === "" ? null : Number(v) || 0);
+
+  return (
+    <div className="card" style={{ display: "grid", gap: 16 }}>
+      <p className="sub" style={{ margin: 0 }}>نطاقات أسعار يراها الفريق أثناء إنشاء العرض، في خطوة كل خدمة وقبل زر إنشاء عرض السعر. لا تظهر في ملف العرض ولا تُحفظ في كود التطبيق. فعّل "تكلفة" للبنود التي هي تكلفة داخلية.</p>
+      <div className="row">
+        <button className="lq" onClick={() => ref.current.click()}>رفع ملف price-guide.json</button>
+        {draft && <button className="lq primary" onClick={async () => { await setSetting("priceGuide", draft); setDraft(null); toast("تم الحفظ"); }}>حفظ التعديلات</button>}
+        <input ref={ref} type="file" accept=".json" hidden onChange={(e) => e.target.files[0] && load(e.target.files[0])} />
+      </div>
+      {Object.entries(SERVICE_TITLES).map(([sid, title]) => {
+        const items = secOf(sid)?.items || [];
+        const upd = (i, p) => setItems(sid, items.map((it, j) => (j === i ? { ...it, ...p } : it)));
+        return (
+          <div key={sid} className="block">
+            <b>{title}</b>
+            {items.map((it, i) => (
+              <div key={i} className="row" style={{ alignItems: "end" }}>
+                <label className="f" style={{ flex: "2 1 200px" }}>البند<input className="in" value={it.label || ""} onChange={(e) => upd(i, { label: e.target.value })} /></label>
+                <label className="f" style={{ flex: "1 1 90px" }}>من<input className="in" type="number" dir="ltr" value={it.from ?? ""} onChange={(e) => upd(i, { from: numOrNull(e.target.value) })} /></label>
+                <label className="f" style={{ flex: "1 1 90px" }}>إلى<input className="in" type="number" dir="ltr" value={it.to ?? ""} onChange={(e) => upd(i, { to: numOrNull(e.target.value) })} /></label>
+                <label className="f" style={{ flex: "1 1 110px" }}>الوحدة<input className="in" value={it.unit || ""} onChange={(e) => upd(i, { unit: e.target.value })} /></label>
+                <label className="f" style={{ flex: "2 1 160px" }}>ملاحظة<input className="in" value={it.note || ""} onChange={(e) => upd(i, { note: e.target.value })} /></label>
+                <label className="check" style={{ display: "flex", gap: 6, alignItems: "center", minHeight: 46 }}><input type="checkbox" checked={!!it.cost} onChange={(e) => upd(i, { cost: e.target.checked })} />تكلفة</label>
+                <button className="lq sm danger" onClick={() => setItems(sid, items.filter((_, j) => j !== i))}>حذف</button>
+              </div>
+            ))}
+            <button className="lq sm" style={{ justifySelf: "start" }} onClick={() => setItems(sid, [...items, { label: "" }])}>+ بند</button>
+          </div>
+        );
+      })}
     </div>
   );
 }

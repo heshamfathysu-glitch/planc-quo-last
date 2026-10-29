@@ -20,6 +20,39 @@ const Tile = ({ on, onClick, children }) => (
   <button type="button" className={`tile${on ? " on" : ""}`} aria-pressed={!!on} onClick={onClick}>{children}</button>
 );
 
+// The team's price guide (Admin > دليل الأسعار, stored in settings/priceGuide,
+// never in the code). Shown while filling in a service and again before the
+// quote is made; it never reaches the PDF.
+const num = (n) => Number(n).toLocaleString("en-US");
+function guideRange(it) {
+  const n = (v) => <bdi className="nums" dir="ltr">{num(v)}</bdi>;
+  if (it.from && it.to) return <>من {n(it.from)} إلى {n(it.to)} ريال</>;
+  if (it.from || it.to) return <>{n(it.from || it.to)} ريال</>;
+  return "—";
+}
+function PriceGuide({ guide, ids }) {
+  const secs = (guide?.sections || []).filter((s) => ids.includes(s.service) && s.items?.length);
+  if (!secs.length) return null;
+  return (
+    <details className="guide" open>
+      <summary>دليل الأسعار <small>للفريق فقط، لا يظهر في عرض السعر</small></summary>
+      {secs.map((s) => (
+        <div className="guide-sec" key={s.service}>
+          {secs.length > 1 && <b>{s.title}</b>}
+          <ul>
+            {s.items.map((it, i) => (
+              <li key={i} className={it.cost ? "cost" : undefined}>
+                <span>{it.label}{it.note && <small>{it.note}</small>}</span>
+                <span className="range">{guideRange(it)}{it.unit && <small>{it.unit}</small>}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </details>
+  );
+}
+
 function PriceField({ value, onChange, hint }) {
   return (
     <label className="f">السعر قبل الضريبة (ريال){hint && <span className="sub">{hint}</span>}
@@ -34,6 +67,7 @@ export default function Wizard() {
   const { user } = useAuth();
   const pricing = useSetting("pricing", null);
   const termsLib = useSetting("terms", null);
+  const guide = useSetting("priceGuide", null);
   const [clients] = useCollection("clients");
   const [q, setQ] = useState(undefined); // undefined = loading, null = not found
   const [busy, setBusy] = useState(false);
@@ -161,6 +195,7 @@ export default function Wizard() {
       </>)}
 
       {key?.startsWith("svc:") && <ServiceStep sid={key.slice(4)} s={a[key.slice(4)] || {}} setSvc={setSvc} pricing={pricing} />}
+      {key?.startsWith("svc:") && <PriceGuide guide={guide} ids={[key.slice(4)]} />}
 
       {key === "review" && (<>
         <h2>مراجعة سريعة</h2>
@@ -172,6 +207,7 @@ export default function Wizard() {
           })}
           {!preview.length && <div className="warn">لم تُحدد خدمات بسعر بعد</div>}
         </div>
+        <PriceGuide guide={guide} ids={a.services || []} />
         <div className="grid g2" style={{ marginTop: 16 }}>
           <label className="f">خصم (%)<input className="in" type="number" min="0" max="100" value={a.discount ?? ""} onChange={(e) => set({ discount: e.target.value })} placeholder="بدون خصم" /></label>
           {(a.services || []).length > 1 && (
