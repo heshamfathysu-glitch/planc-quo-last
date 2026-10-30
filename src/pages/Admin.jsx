@@ -34,6 +34,20 @@ export default function Admin() {
   );
 }
 
+// Either upload button takes either file: pricing.json (has "services") goes to
+// the price list, price-guide.json (has "sections") goes to the price guide.
+async function loadPriceFile(file) {
+  try {
+    const j = JSON.parse(await file.text());
+    if (j.services) { await setSetting("pricing", j); toast("تم تحميل قائمة الأسعار"); return true; }
+    if (Array.isArray(j.sections)) { await setSetting("priceGuide", j); toast("تم تحميل دليل الأسعار"); return true; }
+    throw new Error();
+  } catch (e) {
+    if (!e?.notified) toast("الملف غير صالح. ارفع pricing.json (قائمة الأسعار) أو price-guide.json (دليل الأسعار).", "error");
+    return false;
+  }
+}
+
 function Pricing() {
   const pricing = useSetting("pricing", null);
   const ref = useRef();
@@ -41,13 +55,7 @@ function Pricing() {
   const p = draft || pricing;
 
   async function load(file) {
-    try {
-      const j = JSON.parse(await file.text());
-      if (!j.services) throw new Error();
-      await setSetting("pricing", j);
-      setDraft(null);
-      toast("تم تحميل قائمة الأسعار");
-    } catch (e) { if (!e?.notified) toast("الملف غير صالح. يجب أن يكون pricing.json فيه قائمة الخدمات.", "error"); }
+    if (await loadPriceFile(file)) setDraft(null);
   }
   const setTier = (k, i, price) => setDraft({ ...p, services: { ...p.services, [k]: { ...p.services[k], tiers: p.services[k].tiers.map((t, j) => (j === i ? { ...t, price: Number(price) || 0 } : t)) } } });
 
@@ -86,13 +94,7 @@ function Guide() {
   const g = draft || saved || { v: 1, sections: [] };
 
   async function load(file) {
-    try {
-      const j = JSON.parse(await file.text());
-      if (!Array.isArray(j.sections)) throw new Error();
-      await setSetting("priceGuide", j);
-      setDraft(null);
-      toast("تم تحميل دليل الأسعار");
-    } catch (e) { if (!e?.notified) toast("الملف غير صالح. يجب أن يكون price-guide.json فيه أقسام الخدمات.", "error"); }
+    if (await loadPriceFile(file)) setDraft(null);
   }
   const secOf = (sid) => g.sections.find((x) => x.service === sid);
   const setItems = (sid, items) => {
