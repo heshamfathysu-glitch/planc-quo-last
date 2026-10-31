@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSetting, setSetting, list, put, remove, useCollection, CLOUD } from "../lib/store.js";
 import { createUser, getTeamCode, setTeamCode } from "../lib/firebase.js";
 import { DEFAULT_TERMS } from "../data/catalog.js";
-import { themeOf } from "../pdf/engine.js";
+import { themeOf, unitPrice } from "../pdf/engine.js";
 import { toast, download, ConfirmButton } from "../ui.jsx";
 import { errorText } from "../lib/notify.js";
 import { useAuth } from "../auth.jsx";
@@ -80,6 +80,54 @@ function Pricing() {
           </div>
         </div>
       ))}
+      {p && <Bundles p={p} setDraft={setDraft} />}
+    </div>
+  );
+}
+
+// fixed-price packages (e.g. reels bundles) shown in the price calculator
+function Bundles({ p, setDraft }) {
+  const bundles = p.bundles || [];
+  const svc = Object.entries(p.services || {});
+  const setB = (next) => setDraft({ ...p, bundles: next });
+  const upd = (i, patch) => setB(bundles.map((b, j) => (j === i ? { ...b, ...patch } : b)));
+  const value = (b) => (b.items || []).reduce((s, it) => {
+    const n = Number(it.qty) || 0;
+    try { return s + n * unitPrice(it.service, n, p); } catch { return s; }
+  }, 0);
+  return (
+    <div className="block">
+      <b>الباقات</b>
+      <p className="sub" style={{ margin: 0 }}>باقات بسعر ثابت تظهر في حاسبة الأسعار، مثل باقة ريلز في يوم تصوير واحد.</p>
+      {bundles.map((b, i) => {
+        const items = b.items?.length ? b.items : [{ service: svc[0]?.[0], qty: 1 }];
+        const updItem = (k, patch) => upd(i, { items: items.map((it, j) => (j === k ? { ...it, ...patch } : it)) });
+        const v = value({ items });
+        return (
+          <div key={i} className="pagebox">
+            <div className="row" style={{ alignItems: "end" }}>
+              <label className="f" style={{ flex: "2 1 200px" }}>اسم الباقة<input className="in" value={b.title || ""} onChange={(e) => upd(i, { title: e.target.value })} /></label>
+              <label className="f" style={{ flex: "1 1 120px" }}>سعر الباقة<input className="in" type="number" dir="ltr" value={b.price ?? ""} onChange={(e) => upd(i, { price: Number(e.target.value) || 0 })} /></label>
+              <button className="lq sm danger" onClick={() => setB(bundles.filter((_, j) => j !== i))}>حذف الباقة</button>
+            </div>
+            {items.map((it, k) => (
+              <div key={k} className="row">
+                <select className="in" style={{ flex: "2 1 200px" }} aria-label="الخدمة" value={it.service || ""} onChange={(e) => updItem(k, { service: e.target.value })}>
+                  {svc.map(([id, s]) => <option key={id} value={id}>{s.title}</option>)}
+                </select>
+                <input className="in" style={{ flex: "0 1 90px" }} type="number" min="1" dir="ltr" aria-label="الكمية" value={it.qty ?? ""} onChange={(e) => updItem(k, { qty: Number(e.target.value) || 0 })} />
+                {items.length > 1 && <button className="lq sm danger" onClick={() => upd(i, { items: items.filter((_, j) => j !== k) })}>حذف</button>}
+              </div>
+            ))}
+            <div className="row">
+              <button className="lq sm" onClick={() => upd(i, { items: [...items, { service: svc[0]?.[0], qty: 1 }] })}>+ خدمة في الباقة</button>
+              <span className="spacer" />
+              <span className="sub">بأسعار القائمة: {v.toLocaleString("en-US")} ريال{v > (b.price || 0) && b.price ? ` · توفير ${Math.round(((v - b.price) / v) * 100)}%` : ""}</span>
+            </div>
+          </div>
+        );
+      })}
+      <button className="lq sm" style={{ justifySelf: "start" }} onClick={() => setB([...bundles, { id: "b" + Date.now().toString(36), title: "", price: 0, items: [{ service: svc[0]?.[0], qty: 1 }] }])}>+ باقة</button>
     </div>
   );
 }
