@@ -808,3 +808,41 @@ body { background: transparent; }
   .guide li { flex-direction: column; gap: 2px; }
   .guide li .range { text-align: start; }
 }
+
+/* ---------- price calculator (team only) ---------- */
+.calc { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.calc-main { display: grid; gap: 16px; }
+.calc-main .guide { margin-top: 0; }
+.calc-sec { display: grid; gap: 12px; }
+.calc-sec h2, .calc-sum h2 { font-size: 18px; color: var(--heading, var(--ink)); }
+.calc-sec > .sub { margin: -6px 0 2px; }
+.calc-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 150px; gap: 8px 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.calc-row.on .calc-name > b::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-inline-end: 8px; background: var(--pick, var(--ok)); vertical-align: middle; }
+.calc-name { display: grid; gap: 4px; }
+.calc-name small { color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.calc-name small.save { color: var(--ok); }
+.calc .tier { white-space: nowrap; }
+.calc .tier.on { color: var(--ink); font-weight: 700; }
+.calc-amt { display: grid; text-align: end; }
+.calc-amt small { color: var(--muted); font-size: 12px; }
+.calc-hint { grid-column: 1 / -1; justify-self: start; background: var(--accent-soft); color: var(--ink); border: 0; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; text-align: start; }
+.calc-hint.warn { background: none; padding: 0; cursor: default; color: var(--warn); }
+.stepper { display: flex; gap: 6px; align-items: center; }
+.stepper .in { width: 72px; text-align: center; padding-inline: 6px; }
+.calc-sum { position: sticky; top: 96px; display: grid; gap: 12px; }
+.calc-sum .row b { font-size: 15px; }
+.calc-total { border-top: 2px solid var(--accent); padding-top: 12px; font-size: 17px; }
+.calc-total b { font-size: 22px !important; color: var(--heading, var(--ink)); }
+.calc-profit b { color: var(--ok); }
+.calc-profit.loss b { color: var(--danger); }
+:root[data-theme^="kit"] .calc-hint { clip-path: var(--cut-s); }
+:root[data-theme^="kit"] :is(.calc-amt b, .calc-sum .row b, .calc .tier) { font-family: "Plex Mono", "Plex Arabic", monospace; font-weight: 500; }
+@media (max-width: 1000px) {
+  .calc { grid-template-columns: minmax(0, 1fr); }
+  .calc-sum { position: static; }
+}
+@media (max-width: 760px) {
+  .calc-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .calc-name { grid-column: 1 / -1; }
+  .calc-amt { min-width: 0; }
+}

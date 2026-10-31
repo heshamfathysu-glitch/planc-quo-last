@@ -28,6 +28,7 @@ const Clients = page(() => import("./pages/Clients.jsx"));
 const Companies = page(() => import("./pages/Companies.jsx"));
 const Dashboard = page(() => import("./pages/Dashboard.jsx"));
 const Admin = page(() => import("./pages/Admin.jsx"));
+const Calculator = page(() => import("./pages/Calculator.jsx"));
 
 const TITLES = [
   ["/new/", "عرض سعر جديد"],
@@ -35,6 +36,7 @@ const TITLES = [
   ["/quotes", "سجل العروض"],
   ["/clients", "سجل العملاء"],
   ["/companies", "شركات التسويق والإنتاج"],
+  ["/calculator", "حاسبة الأسعار"],
   ["/dashboard", "ملخص العروض"],
   ["/admin", "لوحة التحكم"],
 ];
@@ -84,7 +86,7 @@ function BottomNav({ user, logout }) {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [open]);
-  const inMore = ["/companies", "/dashboard", "/admin"].some((p) => loc.pathname.startsWith(p));
+  const inMore = ["/calculator", "/companies", "/dashboard", "/admin"].some((p) => loc.pathname.startsWith(p));
   return (
     <>
       <nav className="bottomnav" aria-label="التنقل الرئيسي">
@@ -102,6 +104,7 @@ function BottomNav({ user, logout }) {
           <div className="sheet" role="dialog" aria-modal="true" aria-label="المزيد">
             <div className="grip" />
             <div className="user">{user.name}</div>
+            <NavLink to="/calculator" onClick={close}>حاسبة الأسعار</NavLink>
             <NavLink to="/companies" onClick={close}>شركات التسويق والإنتاج</NavLink>
             <NavLink to="/dashboard" onClick={close}>الملخص</NavLink>
             <NavLink to="/admin" onClick={close}>لوحة التحكم</NavLink>
@@ -126,6 +129,7 @@ function Shell({ children }) {
           <NavLink to="/" end>الرئيسية</NavLink>
           <NavLink to="/quotes">سجل العروض</NavLink>
           <NavLink to="/clients">العملاء</NavLink>
+          <NavLink to="/calculator">الحاسبة</NavLink>
           <NavLink to="/companies">شركات التسويق والإنتاج</NavLink>
           <NavLink to="/dashboard">الملخص</NavLink>
           <NavLink to="/admin">لوحة التحكم</NavLink>
@@ -175,6 +179,7 @@ function Gate() {
         <Route path="/quotes" element={<Quotes />} />
         <Route path="/clients" element={<Clients />} />
         <Route path="/companies" element={<Companies />} />
+        <Route path="/calculator" element={<Calculator />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={isAdmin ? <Admin /> : <AdminLogin />} />
         <Route path="*" element={<NotFound />} />

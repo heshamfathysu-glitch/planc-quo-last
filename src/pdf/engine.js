@@ -42,7 +42,7 @@ export const CONTENT_LIMIT = 795; // lowest box edge; a last text line sits on 7
 const TEXT_DESCENT = 11.45;
 const INTRO_W = 345;
 const TERMS_GAP = 50.68; // last body line of a term to the next heading
-const VAT_RATE = 15;
+export const VAT_RATE = 15;
 const WHITE = [255, 255, 255];
 
 // icon picked from the words of a title when none is set
