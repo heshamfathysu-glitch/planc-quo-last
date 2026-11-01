@@ -808,3 +808,10 @@ body { background: transparent; }
   .guide li { flex-direction: column; gap: 2px; }
   .guide li .range { text-align: start; }
 }
+
+/* ready-made packages in the wizard */
+.pkgs .tile { gap: 6px; padding-block: 16px; }
+.pkgs .tile b { font-size: 16px; }
+.pkgs .tile .pkg-price { font-size: 15px; color: var(--accent); font-weight: 600; }
+.pkgs .tile.on .pkg-price { color: inherit; }
+.pkgs .tile small { line-height: 1.5; }

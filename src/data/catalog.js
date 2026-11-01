@@ -50,8 +50,16 @@ export const SERVICES = [
   { id: "consult", label: "استشارة تسويقية", ic: "💡" },
   { id: "identity", label: "تصميم هوية بصرية", ic: "🎨" },
   { id: "accounts", label: "إدارة حسابات", ic: "📱" },
+  { id: "realestate", label: "باقات التصوير العقاري", ic: "🏢" },
   { id: "package", label: "باقة مخصصة", ic: "📦" },
   { id: "custom", label: "أضف خدمة مخصصة", ic: "＋" },
+];
+
+// Ready-made packages (Admin > الباقات الجاهزة, stored in settings/packages,
+// never in the code). A wizard service whose id is listed here lets the team
+// pick one or more packages and then edit the name, price and contents.
+export const PACKAGE_CATEGORIES = [
+  { id: "realestate", label: "التصوير العقاري" },
 ];
 
 export const STATUSES = [
