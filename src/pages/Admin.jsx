@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useSetting, setSetting, list, put, remove, useCollection, CLOUD } from "../lib/store.js";
 import { createUser, getTeamCode, setTeamCode } from "../lib/firebase.js";
-import { DEFAULT_TERMS } from "../data/catalog.js";
+import { DEFAULT_TERMS, PACKAGE_CATEGORIES } from "../data/catalog.js";
+import { packageLines } from "../lib/compose.js";
 import { themeOf } from "../pdf/engine.js";
 import { toast, download, ConfirmButton } from "../ui.jsx";
 import { errorText } from "../lib/notify.js";
@@ -9,6 +10,7 @@ import { useAuth } from "../auth.jsx";
 
 const TABS = [
   { id: "pricing", label: "قائمة الأسعار" },
+  { id: "packages", label: "الباقات الجاهزة" },
   { id: "guide", label: "دليل الأسعار" },
   { id: "terms", label: "مكتبة الشروط" },
   { id: "theme", label: "الألوان والخط" },
@@ -25,6 +27,7 @@ export default function Admin() {
         {TABS.map((t) => <button key={t.id} className={`tab${tab === t.id ? " on" : ""}`} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
       {tab === "pricing" && <Pricing />}
+      {tab === "packages" && <Packages />}
       {tab === "guide" && <Guide />}
       {tab === "terms" && <Terms />}
       {tab === "theme" && <Theme />}
@@ -34,16 +37,18 @@ export default function Admin() {
   );
 }
 
-// Either upload button takes either file: pricing.json (has "services") goes to
-// the price list, price-guide.json (has "sections") goes to the price guide.
+// Any upload button takes any of the files: pricing.json (has "services") goes
+// to the price list, price-guide.json (has "sections") to the price guide and
+// packages.json (has "packages") to the ready-made packages.
 async function loadPriceFile(file) {
   try {
     const j = JSON.parse(await file.text());
     if (j.services) { await setSetting("pricing", j); toast("تم تحميل قائمة الأسعار"); return true; }
     if (Array.isArray(j.sections)) { await setSetting("priceGuide", j); toast("تم تحميل دليل الأسعار"); return true; }
+    if (Array.isArray(j.packages)) { await setSetting("packages", { v: 1, packages: j.packages.map(cleanPackage) }); toast("تم تحميل الباقات الجاهزة"); return true; }
     throw new Error();
   } catch (e) {
-    if (!e?.notified) toast("الملف غير صالح. ارفع pricing.json (قائمة الأسعار) أو price-guide.json (دليل الأسعار).", "error");
+    if (!e?.notified) toast("الملف غير صالح. ارفع pricing.json (قائمة الأسعار) أو price-guide.json (دليل الأسعار) أو packages.json (الباقات الجاهزة).", "error");
     return false;
   }
 }
@@ -84,7 +89,79 @@ function Pricing() {
   );
 }
 
-const SERVICE_TITLES = { photo: "تصوير فوتوغرافي", video: "تصوير فيديو", website: "موقع إلكتروني", landing: "صفحة هبوط", consult: "استشارة تسويقية", identity: "هوية بصرية", accounts: "إدارة حسابات السوشيال ميديا", package: "باقة مخصصة" };
+const SERVICE_TITLES = { photo: "تصوير فوتوغرافي", video: "تصوير فيديو", website: "موقع إلكتروني", landing: "صفحة هبوط", consult: "استشارة تسويقية", identity: "هوية بصرية", accounts: "إدارة حسابات السوشيال ميديا", realestate: "باقات التصوير العقاري", package: "باقة مخصصة" };
+
+const pkgId = () => "pk-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function cleanPackage(k) {
+  return { id: k.id || pkgId(), category: k.category || "realestate", title: String(k.title || "").trim(), price: Number(k.price) || 0, includes: packageLines(k.includes) };
+}
+
+// Ready-made packages the team picks in the wizard and can edit per quote.
+// Stored in settings/packages, never in the code (the repository is public).
+function Packages() {
+  const saved = useSetting("packages", null);
+  const ref = useRef();
+  const [draft, setDraft] = useState(null);
+  const all = (draft || saved)?.packages || [];
+  // while editing, contents are kept as text (one point per line)
+  const edit = (list) => setDraft({ v: 1, packages: list });
+  const upd = (id, p) => edit(all.map((k) => (k.id === id ? { ...k, ...p } : k)));
+  const move = (id, d) => {
+    const i = all.findIndex((k) => k.id === id), j = i + d;
+    const cat = all[i].category;
+    let n = j;
+    while (n >= 0 && n < all.length && all[n].category !== cat) n += d;
+    if (n < 0 || n >= all.length) return;
+    const next = [...all]; [next[i], next[n]] = [next[n], next[i]]; edit(next);
+  };
+  async function save() {
+    const bad = all.find((k) => !String(k.title || "").trim());
+    if (bad) return toast("اكتب اسما لكل باقة قبل الحفظ.", "error");
+    await setSetting("packages", { v: 1, packages: all.map(cleanPackage) });
+    setDraft(null);
+    toast("تم حفظ الباقات");
+  }
+  async function load(file) {
+    if (await loadPriceFile(file)) setDraft(null);
+  }
+  const text = (v) => (Array.isArray(v) ? v.join("\n") : v || "");
+
+  return (
+    <div className="card" style={{ display: "grid", gap: 16 }}>
+      <p className="sub" style={{ margin: 0 }}>باقات بأسعار ثابتة يختارها الفريق في خطوة الخدمة، ويستطيع تعديل الاسم والسعر والمحتوى داخل العرض نفسه دون أن تتغير الباقة هنا. لا تُحفظ في كود التطبيق.</p>
+      <div className="row">
+        <button className="lq" onClick={() => ref.current.click()}>رفع ملف packages.json</button>
+        {draft && <button className="lq primary" onClick={save}>حفظ التعديلات</button>}
+        {draft && <button className="lq" onClick={() => setDraft(null)}>إلغاء</button>}
+        <input ref={ref} type="file" accept=".json" hidden onChange={(e) => e.target.files[0] && load(e.target.files[0])} />
+      </div>
+      {PACKAGE_CATEGORIES.map((c) => {
+        const list = all.filter((k) => k.category === c.id);
+        return (
+          <div key={c.id} style={{ display: "grid", gap: 12 }}>
+            <b>باقات {c.label}</b>
+            {!list.length && <div className="warn">لا توجد باقات بعد.</div>}
+            {list.map((k) => (
+              <div key={k.id} className="block">
+                <div className="row" style={{ alignItems: "end" }}>
+                  <label className="f" style={{ flex: "2 1 220px" }}>اسم الباقة<input className="in" value={k.title || ""} onChange={(e) => upd(k.id, { title: e.target.value })} /></label>
+                  <label className="f" style={{ flex: "1 1 130px" }}>السعر قبل الضريبة<input className="in" type="number" min="0" dir="ltr" value={k.price ?? ""} onChange={(e) => upd(k.id, { price: e.target.value })} /></label>
+                  <button className="lq icon sm" aria-label="تحريك للأعلى" onClick={() => move(k.id, -1)}>↑</button>
+                  <button className="lq icon sm" aria-label="تحريك للأسفل" onClick={() => move(k.id, 1)}>↓</button>
+                  <button className="lq sm danger" onClick={() => edit(all.filter((x) => x.id !== k.id))}>حذف</button>
+                </div>
+                <label className="f">ماذا تشمل الباقة؟ <span className="sub">كل سطر نقطة في عرض السعر</span>
+                  <textarea className="in" rows={Math.max(4, text(k.includes).split("\n").length + 1)} value={text(k.includes)} onChange={(e) => upd(k.id, { includes: e.target.value })} />
+                </label>
+              </div>
+            ))}
+            <button className="lq sm" style={{ justifySelf: "start" }} onClick={() => edit([...all, { id: pkgId(), category: c.id, title: "", price: 0, includes: "" }])}>+ باقة</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // price ranges the team sees while making a quote (Wizard.jsx PriceGuide)
 function Guide() {

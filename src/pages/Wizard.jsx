@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { get, put, list, useCollection, useSetting } from "../lib/store.js";
-import { CLIENT_TYPES, SECTORS, SERVICES, PRODUCT_RANGES, DURATIONS, VIDEO_TYPES, DEFAULT_TERMS } from "../data/catalog.js";
-import { composeQuote, quoteTotal, addDays, fmtDate, serviceItems } from "../lib/compose.js";
+import { CLIENT_TYPES, SECTORS, SERVICES, PRODUCT_RANGES, DURATIONS, VIDEO_TYPES, DEFAULT_TERMS, PACKAGE_CATEGORIES } from "../data/catalog.js";
+import { composeQuote, quoteTotal, addDays, fmtDate, serviceItems, splitOptions } from "../lib/compose.js";
 import { money, toast, Loading } from "../ui.jsx";
 import NotFound from "./NotFound.jsx";
 import { resolveItem } from "../pdf/engine.js";
@@ -68,6 +68,7 @@ export default function Wizard() {
   const pricing = useSetting("pricing", null);
   const termsLib = useSetting("terms", null);
   const guide = useSetting("priceGuide", null);
+  const packages = useSetting("packages", null);
   const [clients] = useCollection("clients");
   const [q, setQ] = useState(undefined); // undefined = loading, null = not found
   const [busy, setBusy] = useState(false);
@@ -194,7 +195,7 @@ export default function Wizard() {
         )}
       </>)}
 
-      {key?.startsWith("svc:") && <ServiceStep sid={key.slice(4)} s={a[key.slice(4)] || {}} setSvc={setSvc} pricing={pricing} />}
+      {key?.startsWith("svc:") && <ServiceStep sid={key.slice(4)} s={a[key.slice(4)] || {}} setSvc={setSvc} pricing={pricing} packages={packages} />}
       {key?.startsWith("svc:") && <PriceGuide guide={guide} ids={[key.slice(4)]} />}
 
       {key === "review" && (<>
@@ -210,9 +211,9 @@ export default function Wizard() {
         <PriceGuide guide={guide} ids={a.services || []} />
         <div className="grid g2" style={{ marginTop: 16 }}>
           <label className="f">خصم (%)<input className="in" type="number" min="0" max="100" value={a.discount ?? ""} onChange={(e) => set({ discount: e.target.value })} placeholder="بدون خصم" /></label>
-          {(a.services || []).length > 1 && (
+          {preview.length > 1 && (
             <label className="f">طريقة العرض
-              <select className="in" value={a.split ? "1" : ""} onChange={(e) => set({ split: !!e.target.value })}>
+              <select className="in" value={splitOptions(a) ? "1" : ""} onChange={(e) => set({ split: !!e.target.value })}>
                 <option value="">كل الخدمات في خيار واحد</option>
                 <option value="1">كل خدمة خيار منفصل</option>
               </select>
@@ -233,9 +234,11 @@ export default function Wizard() {
   );
 }
 
-function ServiceStep({ sid, s, setSvc, pricing }) {
+function ServiceStep({ sid, s, setSvc, pricing, packages }) {
   const set = (p) => setSvc(sid, p);
   const label = SERVICES.find((x) => x.id === sid)?.label;
+
+  if (PACKAGE_CATEGORIES.some((c) => c.id === sid)) return <PackageStep sid={sid} label={label} s={s} set={set} packages={packages} />;
 
   if (sid === "photo") {
     const svc = s.kind === "menu" ? "menu_photo" : "social_photo";
@@ -317,5 +320,54 @@ function ServiceStep({ sid, s, setSvc, pricing }) {
     <h2>{label}</h2>
     <label className="f">ما الذي تشمله الخدمة؟<textarea className="in" autoFocus value={s.desc || ""} onChange={(e) => set({ desc: e.target.value })} /></label>
     <div style={{ marginTop: 16 }}><PriceField value={s.price} onChange={(v) => set({ price: v })} /></div>
+  </>);
+}
+
+// Ready-made packages: pick one or more, then change the name, price or
+// contents for this quote only (the saved packages stay as they are).
+function PackageStep({ sid, label, s, set, packages }) {
+  const ready = (packages?.packages || []).filter((k) => k.category === sid);
+  const picks = s.picks || [];
+  const isOn = (k) => picks.some((p) => p.from === k.id);
+  const toggle = (k) => set({ picks: isOn(k) ? picks.filter((p) => p.from !== k.id) : [...picks, { from: k.id, title: k.title, price: k.price, includes: (k.includes || []).join("\n") }] });
+  const upd = (i, p) => set({ picks: picks.map((x, j) => (j === i ? { ...x, ...p } : x)) });
+  const original = (p) => ready.find((k) => k.id === p.from);
+
+  return (<>
+    <h2>{label}</h2>
+    {ready.length ? <>
+      <p className="sub" style={{ marginTop: -14 }}>اختر باقة أو أكثر، ثم عدّل ما تريد لهذا العرض فقط. كل باقة تظهر كخيار منفصل في عرض السعر.</p>
+      <div className="grid g3 pkgs">
+        {ready.map((k) => (
+          <Tile key={k.id} on={isOn(k)} onClick={() => toggle(k)}>
+            <b>{k.title}</b>
+            <span className="pkg-price"><bdi className="nums" dir="ltr">{num(k.price || 0)}</bdi> ريال</span>
+            {k.includes?.length > 0 && <small>{k.includes.slice(0, 3).join("، ")}{k.includes.length > 3 ? "..." : ""}</small>}
+          </Tile>
+        ))}
+      </div>
+    </> : <div className="warn">لم تُضف باقات جاهزة بعد. يضيفها المدير من لوحة التحكم ← الباقات الجاهزة، أو أضف باقة يدويا هنا.</div>}
+
+    <div style={{ display: "grid", gap: 14, marginTop: 20 }}>
+      {picks.map((p, i) => (
+        <div className="block" key={i}>
+          <div className="block-head">
+            <b>{p.title || `باقة ${i + 1}`}</b>
+            {original(p) && (Number(p.price) !== Number(original(p).price) || p.title !== original(p).title || p.includes !== (original(p).includes || []).join("\n")) && (
+              <button className="lq sm" onClick={() => { const k = original(p); upd(i, { title: k.title, price: k.price, includes: (k.includes || []).join("\n") }); }}>إرجاع الباقة الأصلية</button>
+            )}
+            <button className="lq sm danger" onClick={() => set({ picks: picks.filter((_, j) => j !== i) })}>حذف</button>
+          </div>
+          <div className="grid g2">
+            <label className="f">اسم الباقة<input className="in" value={p.title || ""} onChange={(e) => upd(i, { title: e.target.value })} /></label>
+            <label className="f">السعر قبل الضريبة (ريال)<input className="in" type="number" min="0" dir="ltr" value={p.price ?? ""} onChange={(e) => upd(i, { price: e.target.value })} /></label>
+          </div>
+          <label className="f">ماذا تشمل الباقة؟ <span className="sub">كل سطر نقطة في عرض السعر</span>
+            <textarea className="in" rows={Math.max(4, String(p.includes || "").split("\n").length + 1)} value={p.includes || ""} onChange={(e) => upd(i, { includes: e.target.value })} />
+          </label>
+        </div>
+      ))}
+      <button className="lq" style={{ justifySelf: "start" }} onClick={() => set({ picks: [...picks, { title: "", price: "", includes: "" }] })}>+ باقة يدوية</button>
+    </div>
   </>);
 }

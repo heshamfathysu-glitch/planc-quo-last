@@ -47,6 +47,13 @@ export function serviceItems(a, pricing) {
       out.push({ sid, item: { title: "تصميم موقع إلكتروني", desc: [s.pages ? `${s.pages} صفحات` : "", s.details].filter(Boolean).join("، "), amount: money(s.price) }, short: "تصميم موقع" });
     } else if (sid === "landing") {
       out.push({ sid, item: { title: "تصميم صفحة هبوط", desc: s.summary || "", amount: money(s.price) }, short: "صفحة هبوط" });
+    } else if (sid === "realestate") {
+      // ready-made packages, each picked one is its own priced item
+      for (const k of s.picks || []) {
+        if (!k.title?.trim()) continue;
+        const includes = packageLines(k.includes);
+        out.push({ sid, item: { title: k.title.trim(), amount: money(k.price), ...(includes.length ? { includes } : {}) }, short: k.title.trim() });
+      }
     } else if (sid === "custom") {
       for (const c of s.items || []) {
         if (c.title) out.push({ sid, item: { title: c.title, desc: c.desc || "", amount: money(c.price) }, short: c.title });
@@ -59,6 +66,17 @@ export function serviceItems(a, pricing) {
   return out.map((x) => ({ ...x, item: stripEmptyDesc(x.item) }));
 }
 
+// a package's contents: one point per line
+export function packageLines(v) {
+  return (Array.isArray(v) ? v : String(v || "").split("\n")).map((l) => String(l).trim()).filter(Boolean);
+}
+
+// several packages picked: each one is its own option unless the team chose otherwise
+export function splitOptions(a) {
+  if (a.split !== undefined && a.split !== "") return !!a.split;
+  return (a.realestate?.picks || []).filter((k) => k.title?.trim()).length > 1;
+}
+
 function stripEmptyDesc(it) {
   if (it.desc === "") { const { desc, ...rest } = it; void desc; return rest; }
   return it;
@@ -69,6 +87,12 @@ function included(it, pricing) {
   try { it = resolveItem(it, pricing); } catch { /* no price tier */ }
   const title = it.title || pricing?.services?.[it.service]?.title || "";
   return it.desc ? `${title} • ${it.desc}` : title;
+}
+
+// the box lines for an option: a package lists its contents point by point
+function boxLines(items, pricing) {
+  if (items.length === 1 && items[0].includes?.length) return items[0].includes;
+  return items.map((it) => (it.includes?.length ? `${it.title}: ${it.includes.join("، ")}` : included(it, pricing))).filter(Boolean);
 }
 
 // one priced service also shows its unit price after the discount
@@ -90,7 +114,7 @@ export function composeQuote(a, pricing, opts = {}) {
   const client = a.addressedTo || a.partyName || "العميل";
   const parts = serviceItems(a, pricing);
   const disc = Number(a.discount) || 0;
-  const options = a.split && parts.length > 1 ? parts.map((p) => [p]) : parts.length ? [parts] : [];
+  const options = splitOptions(a) && parts.length > 1 ? parts.map((p) => [p]) : parts.length ? [parts] : [];
 
   const customs = parts.filter((p) => p.sid === "custom").length;
   const names = [...new Set(parts.map((p) => (p.sid !== "custom" ? label(SERVICES, p.sid) || p.short : customs > 1 ? "خدمات مخصصة" : p.short)))];
@@ -102,7 +126,7 @@ export function composeQuote(a, pricing, opts = {}) {
   const pages = options.map((group, i) => {
     const items = group.map((p) => p.item);
     const blocks = [{ type: "intro", text: intro }];
-    const lines = items.map((it) => included(it, pricing)).filter(Boolean);
+    const lines = boxLines(items, pricing);
     if (lines.length) blocks.push({ type: "box", title: "ماذا يشمل هذا الخيار؟", lines });
     if (disc) blocks.push({ type: "banner", text: discountLine(disc, items, pricing) });
     blocks.push({ type: "card", brief: true, items, ...(disc ? { discount_pct: disc } : {}) });
