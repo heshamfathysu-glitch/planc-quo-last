@@ -7,9 +7,11 @@ import { toast, download, ConfirmButton } from "../ui.jsx";
 import { errorText } from "../lib/notify.js";
 import { useAuth } from "../auth.jsx";
 import { DEFAULT_SELLER } from "../lib/invoice.js";
+import Packages from "./Packages.jsx";
 
 const TABS = [
   { id: "pricing", label: "قائمة الأسعار" },
+  { id: "packages", label: "الباقات" },
   { id: "guide", label: "دليل الأسعار" },
   { id: "terms", label: "مكتبة الشروط" },
   { id: "seller", label: "بيانات الفواتير" },
@@ -22,11 +24,12 @@ export default function Admin() {
   const [tab, setTab] = useState("pricing");
   return (
     <div>
-      <div className="page-head"><h1>لوحة التحكم</h1></div>
+      <div className="page-head"><h1>لوحة التحكم</h1><span className="eyebrow-en" dir="ltr">CONTROL PANEL</span></div>
       <div className="tabs" style={{ marginBottom: 20 }}>
         {TABS.map((t) => <button key={t.id} className={`tab${tab === t.id ? " on" : ""}`} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
       {tab === "pricing" && <Pricing />}
+      {tab === "packages" && <Packages />}
       {tab === "guide" && <Guide />}
       {tab === "terms" && <Terms />}
       {tab === "seller" && <Seller />}
@@ -44,6 +47,7 @@ async function loadPriceFile(file) {
     const j = JSON.parse(await file.text());
     if (j.services) { await setSetting("pricing", j); toast("تم تحميل قائمة الأسعار"); return true; }
     if (Array.isArray(j.sections)) { await setSetting("priceGuide", j); toast("تم تحميل دليل الأسعار"); return true; }
+    if (Array.isArray(j.packages)) { await setSetting("packages", j); toast("تم تحميل الباقات"); return true; }
     throw new Error();
   } catch (e) {
     if (!e?.notified) toast("الملف غير صالح. ارفع pricing.json (قائمة الأسعار) أو price-guide.json (دليل الأسعار).", "error");

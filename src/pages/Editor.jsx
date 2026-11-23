@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { get, put, remove, useSetting } from "../lib/store.js";
 import { renderQuote, downloadQuote } from "../pdf/render.js";
@@ -8,6 +8,8 @@ import { quoteTotal, clientTypeLabel } from "../lib/compose.js";
 import { STATUSES, DEFAULT_TERMS } from "../data/catalog.js";
 import { money, toast, ConfirmButton, Loading } from "../ui.jsx";
 import NotFound from "./NotFound.jsx";
+import ItemsPanel from "./ItemsPanel.jsx";
+import { duplicateQuote, quoteToInvoice } from "../lib/quoteOps.js";
 import { resolveItem, cardTotals } from "../pdf/engine.js";
 
 const BLOCK_TYPES = [
@@ -68,7 +70,8 @@ export default function Editor() {
   const [q, setQ] = useState(undefined); // undefined = loading, null = not found
   const [pdf, setPdf] = useState({ blob: null, warnings: [], error: "" });
   const [saved, setSaved] = useState("");
-  const [view, setView] = useState("edit");
+  const [params] = useSearchParams();
+  const [view, setView] = useState(params.get("view") === "preview" ? "preview" : "edit");
   const timer = useRef(null);
 
   useEffect(() => { get("quotes", id).then(setQ); }, [id]);
@@ -141,10 +144,24 @@ export default function Editor() {
   }
 
   async function duplicate() {
-    const { id: _id, createdAt, updatedAt, history, ...rest } = q; // eslint-disable-line no-unused-vars
-    const copy = await put("quotes", { ...rest, status: "draft", data: { ...d, quote_no: d.quote_no + "-2" }, history: [] }, user);
+    const copy = await duplicateQuote(q, user);
     toast("تم نسخ العرض");
     nav(`/quote/${copy.id}`);
+  }
+  async function toInvoice() {
+    const inv = await quoteToInvoice(q, pricing, user);
+    toast("تم إنشاء فاتورة من العرض");
+    nav(`/invoice/${inv.id}`);
+  }
+  // the footer buttons save at once instead of waiting for the autosave
+  async function saveNow(thenPreview) {
+    clearTimeout(timer.current);
+    try {
+      await put("quotes", q, user);
+      setSaved("تم الحفظ");
+      toast("تم حفظ المستند");
+      if (thenPreview) { setView("preview"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    } catch { setSaved("تعذر الحفظ"); }
   }
   async function del() {
     await remove("quotes", id);
@@ -168,6 +185,7 @@ export default function Editor() {
           <button className="lq primary" onClick={() => downloadQuote(d, pricing || { services: {} }, theme).then(() => toast("تم تصدير ملف PDF"), () => toast("تعذر إنشاء ملف PDF. حاول مرة أخرى.", "error"))}>تصدير PDF</button>
           <button className={`lq${hasBank ? " on" : ""}`} aria-pressed={hasBank} onClick={toggleBank}>{hasBank ? "إزالة بيانات التحويل" : "إضافة بيانات التحويل"}</button>
           <button className="lq" onClick={duplicate}>نسخ</button>
+          <button className="lq" onClick={toInvoice}>تحويل إلى فاتورة</button>
           <ConfirmButton onConfirm={del}>حذف</ConfirmButton>
         </div>
       </div>
@@ -186,6 +204,8 @@ export default function Editor() {
             <label className="f">صالح حتى<input className="in" dir="ltr" value={d.valid_until} onChange={(e) => setData({ valid_until: e.target.value })} /></label>
             <label className="f" style={{ gridColumn: "1 / -1" }}>موضوع العرض (تحت اسم العميل أعلى كل صفحة)<input className="in" value={d.subtitle} onChange={(e) => setData({ subtitle: e.target.value })} /></label>
           </div>
+
+          <ItemsPanel data={d} setData={(data) => save({ ...q, data })} pricing={pricing} />
 
           {(a.clientType || a.partyName) && (
             <div className="card sub" style={{ fontSize: 13 }}>
@@ -251,6 +271,13 @@ export default function Editor() {
           )}
           <Preview blob={pdf.blob} />
         </div>
+      </div>
+
+      <div className="savebar">
+        <button className="lq" onClick={() => nav("/quotes")}>إلغاء</button>
+        <span className="sub savebar-st" role="status">{saved}</span>
+        <button className="lq navy" onClick={() => saveNow(false)}>حفظ المستند</button>
+        <button className="lq primary" onClick={() => saveNow(true)}>حفظ ومعاينة PDF</button>
       </div>
     </div>
   );
