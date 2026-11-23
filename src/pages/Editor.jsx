@@ -64,6 +64,7 @@ export default function Editor() {
   const pricing = useSetting("pricing", null);
   const theme = useSetting("theme", null);
   const termsLib = useSetting("terms", DEFAULT_TERMS);
+  const seller = useSetting("seller", null);
   const [q, setQ] = useState(undefined); // undefined = loading, null = not found
   const [pdf, setPdf] = useState({ blob: null, warnings: [], error: "" });
   const [saved, setSaved] = useState("");
@@ -113,6 +114,32 @@ export default function Editor() {
     toast(`تم تغيير الحالة إلى: ${STATUSES.find((s) => s.id === status)?.label || status}`);
   }
 
+  // optional bank transfer details: a box from the invoice settings, placed on
+  // the last page before the approval box
+  const hasBank = d.pages.some((p) => p.blocks.some((b) => b.bank));
+  const bankLines = [
+    seller?.holder || seller?.name ? `اسم المستفيد: ${seller.holder || seller.name}` : "",
+    seller?.bank ? `البنك: ${seller.bank}` : "",
+    seller?.iban ? `الآيبان: ${seller.iban}` : "",
+  ].filter(Boolean);
+  function toggleBank() {
+    if (hasBank) {
+      setPages(d.pages.map((p) => ({ ...p, blocks: p.blocks.filter((b) => !b.bank) })));
+      return toast("تمت إزالة بيانات التحويل");
+    }
+    if (!seller?.iban) return toast("أضف الآيبان أولا من لوحة التحكم > بيانات الفواتير", "error");
+    const box = { type: "box", bank: true, title: "بيانات التحويل", lines: bankLines, icon: "wallet", marks: false };
+    const last = d.pages.length - 1;
+    setPages(d.pages.map((p, i) => {
+      if (i !== last) return p;
+      const at = p.blocks.findIndex((b) => b.type === "approval");
+      const blocks = [...p.blocks];
+      blocks.splice(at < 0 ? blocks.length : at, 0, box);
+      return { ...p, blocks };
+    }));
+    toast("تمت إضافة بيانات التحويل");
+  }
+
   async function duplicate() {
     const { id: _id, createdAt, updatedAt, history, ...rest } = q; // eslint-disable-line no-unused-vars
     const copy = await put("quotes", { ...rest, status: "draft", data: { ...d, quote_no: d.quote_no + "-2" }, history: [] }, user);
@@ -139,6 +166,7 @@ export default function Editor() {
             {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
           <button className="lq primary" onClick={() => downloadQuote(d, pricing || { services: {} }, theme).then(() => toast("تم تصدير ملف PDF"), () => toast("تعذر إنشاء ملف PDF. حاول مرة أخرى.", "error"))}>تصدير PDF</button>
+          <button className={`lq${hasBank ? " on" : ""}`} aria-pressed={hasBank} onClick={toggleBank}>{hasBank ? "إزالة بيانات التحويل" : "إضافة بيانات التحويل"}</button>
           <button className="lq" onClick={duplicate}>نسخ</button>
           <ConfirmButton onConfirm={del}>حذف</ConfirmButton>
         </div>
@@ -238,6 +266,7 @@ function BlockEditor({ b, set, pricing, termsLib }) {
       </div>
     );
   }
+  if (b.type === "box" && b.bank) return <div className="sub">بيانات التحويل من لوحة التحكم &gt; بيانات الفواتير. لإخفائها اضغط «إزالة بيانات التحويل» بالأعلى.</div>;
   if (b.type === "box") {
     return (
       <div style={{ display: "grid", gap: 8 }}>
