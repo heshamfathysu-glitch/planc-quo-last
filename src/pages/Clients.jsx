@@ -14,6 +14,11 @@ const FIELDS = [
   { key: "city", label: "المدينة" },
   { key: "website", label: "الموقع / الروابط", ltr: true },
   { key: "vat", label: "الرقم الضريبي", ltr: true },
+  { key: "cr", label: "السجل التجاري", ltr: true },
+  { key: "building", label: "رقم المبنى", ltr: true },
+  { key: "street", label: "الشارع" },
+  { key: "district", label: "الحي" },
+  { key: "postal", label: "الرمز البريدي", ltr: true },
   { key: "notes", label: "ملاحظات", wide: true },
 ];
 
@@ -30,6 +35,7 @@ export default function Clients() {
       col="clients"
       title="سجل العملاء"
       fields={FIELDS}
+      fromFile
       columns={[
         { key: "name", label: "الاسم" },
         { key: "type", label: "التصنيف", render: (r) => lbl(CLIENT_TYPES, r.type) },
