@@ -6,11 +6,13 @@ import { themeOf } from "../pdf/engine.js";
 import { toast, download, ConfirmButton } from "../ui.jsx";
 import { errorText } from "../lib/notify.js";
 import { useAuth } from "../auth.jsx";
+import { DEFAULT_SELLER } from "../lib/invoice.js";
 
 const TABS = [
   { id: "pricing", label: "قائمة الأسعار" },
   { id: "guide", label: "دليل الأسعار" },
   { id: "terms", label: "مكتبة الشروط" },
+  { id: "seller", label: "بيانات الفواتير" },
   { id: "theme", label: "الألوان والخط" },
   { id: "users", label: "المستخدمون" },
   { id: "backup", label: "نسخ احتياطي" },
@@ -27,6 +29,7 @@ export default function Admin() {
       {tab === "pricing" && <Pricing />}
       {tab === "guide" && <Guide />}
       {tab === "terms" && <Terms />}
+      {tab === "seller" && <Seller />}
       {tab === "theme" && <Theme />}
       {tab === "users" && <Users />}
       {tab === "backup" && <Backup />}
@@ -322,7 +325,7 @@ function TeamAccess() {
   );
 }
 
-const COLS = ["quotes", "clients", "companies", "settings"];
+const COLS = ["quotes", "invoices", "clients", "companies", "settings"];
 function Backup() {
   const ref = useRef();
   const { user } = useAuth();
@@ -378,5 +381,36 @@ function ClearQuotes() {
         </ConfirmButton>
       </div>
     </div>
+  );
+}
+
+// Seller details printed on every new invoice (and in its ZATCA QR code).
+const SELLER_FIELDS = [
+  ["name", "اسم المنشأة كما في السجل التجاري"], ["cr", "رقم السجل التجاري", true], ["vat", "الرقم الضريبي (15 رقما، اتركه فارغا إن لم تكن مسجلا)", true],
+  ["building", "رقم المبنى"], ["street", "الشارع"], ["district", "الحي"], ["city", "المدينة"], ["postal", "الرمز البريدي", true],
+  ["bank", "البنك"], ["iban", "الآيبان", true], ["holder", "اسم المستفيد من التحويل"],
+];
+function Seller() {
+  const saved = useSetting("seller", null);
+  const [s, setS] = useState(null);
+  useEffect(() => { if (saved && !s) setS({ ...DEFAULT_SELLER, ...saved }); }, [saved]); // eslint-disable-line react-hooks/exhaustive-deps
+  const v = s || { ...DEFAULT_SELLER, ...(saved || {}) };
+  const bad = v.vat && !/^3\d{13}3$/.test(v.vat);
+  async function save(e) {
+    e.preventDefault();
+    await setSetting("seller", v);
+    toast("تم حفظ بيانات الفواتير");
+  }
+  return (
+    <form className="card grid" onSubmit={save}>
+      <span className="sub">تظهر هذه البيانات في خانة المورّد في كل فاتورة جديدة، والاسم والرقم الضريبي داخل رمز QR. الفواتير السابقة لا تتغير.</span>
+      <div className="grid g2">
+        {SELLER_FIELDS.map(([k, l, ltr]) => (
+          <label className="f" key={k}>{l}<input className="in" dir={ltr ? "ltr" : undefined} value={v[k] || ""} onChange={(e) => setS({ ...v, [k]: e.target.value })} /></label>
+        ))}
+      </div>
+      {bad && <div className="err">الرقم الضريبي يجب أن يكون 15 رقما يبدأ وينتهي بالرقم 3.</div>}
+      <div className="row"><button className="lq primary" type="submit">حفظ</button></div>
+    </form>
   );
 }

@@ -18,6 +18,7 @@ service cloud.firestore {
     }
 
     match /quotes/{id}    { allow read, write: if member(); }
+    match /invoices/{id}  { allow read, write: if member(); }
     match /clients/{id}   { allow read, write: if member(); }
     match /companies/{id} { allow read, write: if member(); }
     match /settings/{id}  { allow read: if member(); allow write: if isAdmin(); }
