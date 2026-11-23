@@ -71,3 +71,9 @@ export const DEFAULT_TERMS = [
 ];
 
 export const ORDINALS = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن"];
+
+// PDF templates a quote can pick (quote data.template); the first is the default
+export const TEMPLATES = [
+  { id: "classic", label: "القالب الأساسي", hint: "صفحة لكل خيار ثم صفحة الشروط والاعتماد." },
+  { id: "signature", label: "قالب Signature", hint: "غلاف كحلي بأرقام الباقة، ثم صفحة السعر: الجدول والخصم والإجمالي والشروط والتوقيع (مثل عرض لوتشيا بيكري)." },
+];

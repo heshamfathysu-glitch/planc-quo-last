@@ -72,8 +72,10 @@ export function reshape(text) {
 
 const bidi = bidiFactory();
 
-export function getDisplay(text) {
-  const levels = bidi.getEmbeddingLevels(text);
+// dir: "rtl" forces a right-to-left paragraph; by default the first strong
+// character decides, as python-bidi does
+export function getDisplay(text, dir) {
+  const levels = bidi.getEmbeddingLevels(text, dir);
   const chars = Array.from(text);
   // bidi-js works on utf16 indices; our texts are BMP so they line up
   const mirrored = bidi.getMirroredCharactersMap(text, levels.levels);
@@ -86,6 +88,6 @@ export function getDisplay(text) {
 }
 
 // same as make_quote.ar()
-export function ar(text) {
-  return getDisplay(reshape(String(text)));
+export function ar(text, dir) {
+  return getDisplay(reshape(String(text)), dir);
 }

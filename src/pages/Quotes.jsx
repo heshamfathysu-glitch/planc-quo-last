@@ -20,7 +20,7 @@ export const Ico = ({ d }) => (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
 );
 
-function QuoteCard({ q, pricing, theme, user }) {
+function QuoteCard({ q, pricing, theme, seller, user }) {
   const nav = useNavigate();
   const [busy, setBusy] = useState("");
   const ready = !!q.data;
@@ -33,7 +33,7 @@ function QuoteCard({ q, pricing, theme, user }) {
     setBusy(key);
     try { await fn(); } catch { /* the store already showed the error */ } finally { setBusy(""); }
   }
-  const pdf = () => run("pdf", () => downloadQuote(q.data, pricing || { services: {} }, theme).then(
+  const pdf = () => run("pdf", () => downloadQuote(q.data, pricing || { services: {} }, theme, { seller }).then(
     () => toast("تم تصدير ملف PDF"), () => toast("تعذر إنشاء ملف PDF. حاول مرة أخرى.", "error")));
   const invoice = () => run("inv", async () => {
     const inv = await quoteToInvoice(q, pricing, user);
@@ -76,6 +76,7 @@ export default function Quotes() {
   const [quotes] = useCollection("quotes");
   const pricing = useSetting("pricing", null);
   const theme = useSetting("theme", null);
+  const seller = useSetting("seller", null);
   const [st, setSt] = useState("all");
   const [qx, setQx] = useState("");
 
@@ -108,7 +109,7 @@ export default function Quotes() {
       </div>
       {!rows.length ? <div className="card empty">{quotes === null ? "جار التحميل..." : qx || st !== "all" ? "لا توجد عروض مطابقة" : "لا توجد عروض بعد"}</div> : (
         <div className="qgrid">
-          {rows.map((q) => <QuoteCard key={q.id} q={q} pricing={pricing} theme={theme} user={user} />)}
+          {rows.map((q) => <QuoteCard key={q.id} q={q} pricing={pricing} theme={theme} seller={seller} user={user} />)}
         </div>
       )}
     </div>

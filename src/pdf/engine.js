@@ -132,7 +132,8 @@ export function resolveItem(item, pricing) {
 export function cardTotals(b, items, vatRate = VAT_RATE) {
   const base = "price" in b ? b.price : items.filter((i) => "amount" in i).reduce((s, i) => s + i.amount, 0);
   const disc = b.discount_pct || 0;
-  const discount = r2((base * disc) / 100);
+  // a fixed discount amount (discount_amount) takes the place of the percentage
+  const discount = b.discount_amount ? r2(Number(b.discount_amount)) : r2((base * disc) / 100);
   const net = base - discount;
   const vat = b.vat !== false ? r2((net * vatRate) / 100) : 0;
   return { base, disc, discount, net, vat, total: net + vat };
@@ -355,8 +356,8 @@ export class Quote {
   cardRows(b, items, tot) {
     const rows = items.map((it) => ({ label: it.label, title: it.title, desc: it.desc, value: "amount" in it ? fmt(it.amount) : String(it.value ?? "") }));
     if ("price" in b || (b.subtotal_label && items.length > 1)) rows.push({ label: b.subtotal_label || "قيمة الخيار", value: fmt(tot.base) });
-    if (tot.disc) {
-      rows.push({ label: `خصم ${fmt(tot.disc)}%`, value: fmt(-tot.discount) });
+    if (tot.disc || tot.discount) {
+      rows.push({ label: b.discount_label || (b.discount_amount ? "خصم خاص" : `خصم ${fmt(tot.disc)}%`), value: fmt(-tot.discount) });
       rows.push({ label: "الإجمالي بعد الخصم", value: fmt(tot.net) });
     }
     if (b.vat !== false) rows.push({ label: `ضريبة القيمة المضافة ${fmt(this.vat)}%`, value: fmt(tot.vat) });

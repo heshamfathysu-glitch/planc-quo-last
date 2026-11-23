@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { get, put, list, useCollection, useSetting } from "../lib/store.js";
-import { CLIENT_TYPES, SECTORS, SERVICES, PRODUCT_RANGES, DURATIONS, VIDEO_TYPES, DEFAULT_TERMS } from "../data/catalog.js";
+import { CLIENT_TYPES, SECTORS, SERVICES, PRODUCT_RANGES, DURATIONS, VIDEO_TYPES, DEFAULT_TERMS, TEMPLATES } from "../data/catalog.js";
 import { composeQuote, quoteTotal, addDays, fmtDate, serviceItems } from "../lib/compose.js";
 import { money, toast, Loading } from "../ui.jsx";
 import NotFound from "./NotFound.jsx";
@@ -210,6 +210,11 @@ export default function Wizard() {
         <PriceGuide guide={guide} ids={a.services || []} />
         <div className="grid g2" style={{ marginTop: 16 }}>
           <label className="f">خصم (%)<input className="in" type="number" min="0" max="100" value={a.discount ?? ""} onChange={(e) => set({ discount: e.target.value })} placeholder="بدون خصم" /></label>
+          <label className="f">قالب العرض
+            <select className="in" value={a.template || "classic"} onChange={(e) => set({ template: e.target.value === "classic" ? undefined : e.target.value })}>
+              {TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </label>
           {(a.services || []).length > 1 && (
             <label className="f">طريقة العرض
               <select className="in" value={a.split ? "1" : ""} onChange={(e) => set({ split: !!e.target.value })}>

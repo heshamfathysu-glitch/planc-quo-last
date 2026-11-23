@@ -5,7 +5,7 @@ import { get, put, remove, useSetting } from "../lib/store.js";
 import { renderQuote, downloadQuote } from "../pdf/render.js";
 import Preview from "../pdf/Preview.jsx";
 import { quoteTotal, clientTypeLabel } from "../lib/compose.js";
-import { STATUSES, DEFAULT_TERMS } from "../data/catalog.js";
+import { STATUSES, DEFAULT_TERMS, TEMPLATES } from "../data/catalog.js";
 import { money, toast, ConfirmButton, Loading } from "../ui.jsx";
 import NotFound from "./NotFound.jsx";
 import ItemsPanel from "./ItemsPanel.jsx";
@@ -82,7 +82,7 @@ export default function Editor() {
 
     const t = setTimeout(async () => {
       try {
-        const r = await renderQuote(q.data, pricing || { services: {} }, theme);
+        const r = await renderQuote(q.data, pricing || { services: {} }, theme, { seller });
 
         URL.revokeObjectURL(r.url);
         setPdf({ blob: r.blob, warnings: r.warnings, error: "" });
@@ -91,7 +91,7 @@ export default function Editor() {
       }
     }, 450);
     return () => clearTimeout(t);
-  }, [q?.data, pricing, theme]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q?.data, pricing, theme, seller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (q === undefined) return <Loading />;
   if (!q) return <NotFound text="عرض السعر هذا غير موجود، ربما تم حذفه." />;
@@ -182,7 +182,7 @@ export default function Editor() {
           <select className="in auto" aria-label="حالة العرض" value={q.status} onChange={(e) => setStatus(e.target.value)}>
             {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
-          <button className="lq primary" onClick={() => downloadQuote(d, pricing || { services: {} }, theme).then(() => toast("تم تصدير ملف PDF"), () => toast("تعذر إنشاء ملف PDF. حاول مرة أخرى.", "error"))}>تصدير PDF</button>
+          <button className="lq primary" onClick={() => downloadQuote(d, pricing || { services: {} }, theme, { seller }).then(() => toast("تم تصدير ملف PDF"), () => toast("تعذر إنشاء ملف PDF. حاول مرة أخرى.", "error"))}>تصدير PDF</button>
           <button className={`lq${hasBank ? " on" : ""}`} aria-pressed={hasBank} onClick={toggleBank}>{hasBank ? "إزالة بيانات التحويل" : "إضافة بيانات التحويل"}</button>
           <button className="lq" onClick={duplicate}>نسخ</button>
           <button className="lq" onClick={toInvoice}>تحويل إلى فاتورة</button>
@@ -204,6 +204,8 @@ export default function Editor() {
             <label className="f">صالح حتى<input className="in" dir="ltr" value={d.valid_until} onChange={(e) => setData({ valid_until: e.target.value })} /></label>
             <label className="f" style={{ gridColumn: "1 / -1" }}>موضوع العرض (تحت اسم العميل أعلى كل صفحة)<input className="in" value={d.subtitle} onChange={(e) => setData({ subtitle: e.target.value })} /></label>
           </div>
+
+          <TemplatePanel d={d} setData={setData} />
 
           <ItemsPanel data={d} setData={(data) => save({ ...q, data })} pricing={pricing} />
 
@@ -279,6 +281,45 @@ export default function Editor() {
         <button className="lq navy" onClick={() => saveNow(false)}>حفظ المستند</button>
         <button className="lq primary" onClick={() => saveNow(true)}>حفظ ومعاينة PDF</button>
       </div>
+    </div>
+  );
+}
+
+// which PDF design this quote uses, and the cover fields of the Signature one
+// (empty fields take their text from the quote itself)
+function TemplatePanel({ d, setData }) {
+  const tpl = d.template === "signature" ? "signature" : "classic";
+  const s = d.signature || {};
+  const setSig = (patch) => {
+    const next = { ...s, ...patch };
+    Object.keys(next).forEach((k) => (next[k] === undefined || next[k] === "") && delete next[k]);
+    setData({ signature: Object.keys(next).length ? next : undefined });
+  };
+  const firstPage = d.pages.find((p) => p.blocks.some((b) => b.type === "card")) || d.pages[0];
+  const intro = firstPage?.blocks.find((b) => b.type === "intro")?.text || "";
+  const statsText = (s.stats || []).map((x) => `${x.value} | ${x.label}`).join("\n");
+  return (
+    <div className="card" style={{ display: "grid", gap: 10 }}>
+      <b>قالب العرض</b>
+      <div className="tabs" role="radiogroup" aria-label="قالب العرض">
+        {TEMPLATES.map((t) => (
+          <button key={t.id} role="radio" aria-checked={tpl === t.id} className={`tab${tpl === t.id ? " on" : ""}`}
+            onClick={() => setData({ template: t.id === "classic" ? undefined : t.id })}>{t.label}</button>
+        ))}
+      </div>
+      <div className="sub">{TEMPLATES.find((t) => t.id === tpl)?.hint}</div>
+      {tpl === "signature" && (
+        <div className="grid g2">
+          <label className="f">عنوان الغلاف<input className="in" placeholder={firstPage?.title || ""} value={s.title || ""} onChange={(e) => setSig({ title: e.target.value })} /></label>
+          <label className="f">خانة «الباقة» في صفحة السعر<input className="in" placeholder={firstPage?.title || ""} value={s.package || ""} onChange={(e) => setSig({ package: e.target.value })} /></label>
+          <label className="f" style={{ gridColumn: "1 / -1" }}>السطر تحت عنوان الغلاف<input className="in" placeholder={intro.replace(/\n/g, " ")} value={s.subtitle ?? ""} onChange={(e) => setSig({ subtitle: e.target.value })} /></label>
+          <label className="f" style={{ gridColumn: "1 / -1" }}>أرقام الغلاف (سطر لكل رقم: الرقم | الوصف). اتركها فارغة لتؤخذ من البنود والسعر.
+            <textarea className="in" rows={3} placeholder={"24 | صورة\n5 | فيديوهات"} defaultValue={statsText}
+              onBlur={(e) => setSig({ stats: e.target.value.split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([v]) => v).map(([value, label = ""]) => ({ value, label })) })} />
+          </label>
+          <div className="sub" style={{ gridColumn: "1 / -1" }}>يستخدم هذا القالب جدول الأسعار والفقرة التمهيدية والشروط. الصناديق والأشرطة والصور تظهر في القالب الأساسي فقط.</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -416,6 +457,8 @@ function CardEditor({ b, set, pricing }) {
       <button className="lq sm" onClick={() => set({ items: [...b.items, { title: "", amount: 0 }] })}>+ بند</button>
       <div className="grid g2">
         <label className="f">خصم (%)<input className="in" type="number" min="0" max="100" value={b.discount_pct ?? ""} onChange={(e) => set({ discount_pct: Number(e.target.value) || undefined })} /></label>
+        <label className="f">أو خصم بمبلغ ثابت (ر.س)<input className="in" type="number" min="0" value={b.discount_amount ?? ""} onChange={(e) => set({ discount_amount: Number(e.target.value) || undefined })} /></label>
+        <label className="f">اسم سطر الخصم<input className="in" placeholder={b.discount_amount ? "خصم خاص" : "خصم 10%"} value={b.discount_label || ""} onChange={(e) => set({ discount_label: e.target.value || undefined })} /></label>
         <label className="f">سعر الباقة (بدل مجموع البنود)<input className="in" type="number" value={b.price ?? ""} onChange={(e) => set(e.target.value === "" ? { price: undefined } : { price: Number(e.target.value) })} /></label>
         {isPackage && <label className="f">عنوان سطر قيمة الباقة<input className="in" value={b.subtotal_label || ""} onChange={(e) => set({ subtotal_label: e.target.value || undefined })} /></label>}
         <label className="f">عنوان الإجمالي<input className="in" placeholder="الإجمالي شامل الضريبة" value={b.total_label || ""} onChange={(e) => set({ total_label: e.target.value || undefined })} /></label>

@@ -3,6 +3,9 @@ import { buildQuote } from "./engine.js";
 import regularUrl from "../assets/fonts/IBMPlexSansArabic-Regular.ttf?url";
 import boldUrl from "../assets/fonts/IBMPlexSansArabic-Bold.ttf?url";
 import logoUrl from "../assets/logo_navy.png?url";
+import semiUrl from "../assets/fonts/IBMPlexSansArabic-SemiBold.ttf?url";
+import sigLogoUrl from "../assets/logo_signature.png?url";
+import sigCoverUrl from "../assets/logo_signature_cover.png?url";
 
 let assetsP = null;
 const bytes = (u) => fetch(u).then((r) => r.arrayBuffer()).then((b) => new Uint8Array(b));
@@ -13,15 +16,31 @@ export function loadAssets() {
   return assetsP;
 }
 
-export async function renderQuote(data, pricing, theme) {
-  const assets = await loadAssets();
-  const { doc, warnings } = buildQuote(data, assets, pricing, theme);
+// the Signature template's extra font and logos load the first time it is used
+let sigP = null;
+function loadSignatureAssets() {
+  sigP ||= Promise.all([loadAssets(), bytes(semiUrl), bytes(sigLogoUrl), bytes(sigCoverUrl), import("./signature.js")])
+    .then(([base, fontSemi, logo, logoCover, mod]) => ({ assets: { ...base, fontSemi, logo, logoCover }, build: mod.buildSignature }))
+    .catch((e) => { sigP = null; throw e; }); // try again next time
+  return sigP;
+}
+
+// extra: { seller } for the Signature footer (commercial registration)
+export async function renderQuote(data, pricing, theme, extra = {}) {
+  let doc, warnings;
+  if (data.template === "signature") {
+    const { assets, build } = await loadSignatureAssets();
+    ({ doc, warnings } = build(data, assets, pricing, { seller: extra.seller }));
+  } else {
+    const assets = await loadAssets();
+    ({ doc, warnings } = buildQuote(data, assets, pricing, theme));
+  }
   const blob = doc.output("blob");
   return { blob, url: URL.createObjectURL(blob), warnings };
 }
 
-export async function downloadQuote(data, pricing, theme) {
-  const { url } = await renderQuote(data, pricing, theme);
+export async function downloadQuote(data, pricing, theme, extra) {
+  const { url } = await renderQuote(data, pricing, theme, extra);
   const a = document.createElement("a");
   a.href = url;
   a.download = `${data.quote_no || "quote"} - ${data.client || ""}.pdf`.replace(/[\\/:*?"<>|]+/g, "-");
