@@ -1,18 +1,7 @@
 // Draws the PDF pages with pdf.js so the preview works in every browser,
 // including phones that cannot show a PDF inside a page.
 import { useEffect, useRef } from "react";
-
-let pdfjsP = null;
-function pdfjs() {
-  pdfjsP ||= Promise.all([
-    import("pdfjs-dist"),
-    import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
-  ]).then(([lib, worker]) => {
-    lib.GlobalWorkerOptions.workerSrc = worker.default;
-    return lib;
-  });
-  return pdfjsP;
-}
+import { pdfjs } from "../lib/pdfjs.js";
 
 export default function Preview({ blob }) {
   const box = useRef(null);

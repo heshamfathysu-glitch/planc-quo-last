@@ -3,18 +3,44 @@ import { useRef, useState } from "react";
 import { useAuth } from "../auth.jsx";
 import { put, remove, useCollection } from "../lib/store.js";
 import { toCSV, parseCSV, download, toast, ConfirmButton } from "../ui.jsx";
-import { readCompanyFile, FIELD_LABELS } from "../lib/docExtract.js";
+import { readDocFile, FIELD_LABELS, DOC_KINDS } from "../lib/docExtract.js";
 
-// fills the form from a CR certificate or national address PDF; the person
-// checks the fields before saving. Empty fields only, unless nothing is typed.
-export async function fillFromFile(file, current, keys) {
-  const found = await readCompanyFile(file);
+// fills the form from one client document (CR, VAT certificate or national
+// address PDF); the person checks the fields before saving. Empty fields
+// only, so nothing typed is overwritten.
+export async function fillFromFile(file, kind, current, keys) {
+  const found = await readDocFile(file, kind);
   const patch = {};
   for (const [k, v] of Object.entries(found)) if (keys.includes(k) && v && !current[k]) patch[k] = v;
   const names = Object.keys(patch).map((k) => FIELD_LABELS[k] || k);
-  if (!names.length) toast(Object.keys(found).length ? "البيانات الموجودة في الملف مكتوبة مسبقا" : "لم نجد بيانات معروفة في الملف. أدخلها يدويا.", Object.keys(found).length ? "ok" : "error");
+  if (!names.length) toast("البيانات الموجودة في الملف مكتوبة مسبقا");
   else toast(`تمت تعبئة: ${names.join("، ")}. راجعها قبل الحفظ.`);
   return patch;
+}
+
+// three buttons, one hidden file input per document type
+export function DocButtons({ onPatch, current, keys, kinds = ["cr", "vat", "address"] }) {
+  const refs = { cr: useRef(null), vat: useRef(null), address: useRef(null) };
+  const [busy, setBusy] = useState("");
+  async function pick(kind, file) {
+    setBusy(kind);
+    try {
+      const patch = await fillFromFile(file, kind, current, keys);
+      if (Object.keys(patch).length) onPatch(patch);
+    } catch (err) {
+      toast(err?.message || "تعذرت قراءة الملف", "error");
+    } finally {
+      setBusy("");
+    }
+  }
+  return kinds.map((kind) => (
+    <span key={kind} style={{ display: "contents" }}>
+      <button type="button" className="lq sm" disabled={!!busy} onClick={() => refs[kind].current.click()}>
+        {busy === kind ? "جار القراءة..." : `${DOC_KINDS[kind].label} (PDF)`}
+      </button>
+      <input ref={refs[kind]} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => { const f = e.target.files[0]; e.target.value = ""; if (f) pick(kind, f); }} />
+    </span>
+  ));
 }
 
 export default function Registry({ col, title, fields, columns, extra, fromFile }) {
@@ -23,13 +49,6 @@ export default function Registry({ col, title, fields, columns, extra, fromFile 
   const [edit, setEdit] = useState(null);
   const [qx, setQx] = useState("");
   const fileRef = useRef();
-  const docRef = useRef();
-  async function fromDoc(file) {
-    try {
-      const patch = await fillFromFile(file, edit, fields.map((f) => f.key));
-      setEdit((e) => ({ ...e, ...patch }));
-    } catch (err) { toast(err.message || "تعذرت قراءة الملف", "error"); }
-  }
 
   const rows = (items || [])
     .filter((r) => !qx || JSON.stringify(r).includes(qx))
@@ -80,9 +99,9 @@ export default function Registry({ col, title, fields, columns, extra, fromFile 
           <h2 style={{ gridColumn: "1 / -1", fontSize: 16 }}>{edit.id ? "تعديل السجل" : "إضافة سجل جديد"}</h2>
           {fromFile && (
             <div className="row" style={{ gridColumn: "1 / -1" }}>
-              <button type="button" className="lq sm" onClick={() => docRef.current.click()}>تعبئة من السجل التجاري أو العنوان الوطني (PDF)</button>
+              <span className="sub" style={{ fontSize: 13 }}>تعبئة من:</span>
+              <DocButtons current={edit} keys={fields.map((f) => f.key)} onPatch={(patch) => setEdit((e) => ({ ...e, ...patch }))} />
               <span className="sub" style={{ fontSize: 13 }}>يُقرأ الملف داخل المتصفح ولا يُرفع لأي جهة.</span>
-              <input ref={docRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => e.target.files[0] && fromDoc(e.target.files[0]).finally(() => (e.target.value = ""))} />
             </div>
           )}
           {fields.map((f) => (
