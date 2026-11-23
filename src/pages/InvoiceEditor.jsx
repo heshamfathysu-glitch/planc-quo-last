@@ -10,7 +10,7 @@ import {
 } from "../lib/invoice.js";
 import { toast, ConfirmButton, Loading } from "../ui.jsx";
 import NotFound from "./NotFound.jsx";
-import { fillFromFile } from "./Registry.jsx";
+import { DocButtons } from "./Registry.jsx";
 
 const ADDRESS = [
   ["building", "رقم المبنى"], ["street", "الشارع"], ["district", "الحي"], ["city", "المدينة"], ["postal", "الرمز البريدي"],
@@ -28,7 +28,6 @@ export default function InvoiceEditor() {
   const [saved, setSaved] = useState("");
   const [view, setView] = useState("edit");
   const timer = useRef(null);
-  const docRef = useRef(null);
 
   useEffect(() => { get("invoices", id).then(setInv); }, [id]);
 
@@ -76,13 +75,6 @@ export default function InvoiceEditor() {
     const fill = {};
     for (const k of ["vat", "cr", "building", "street", "district", "city", "postal"]) fill[k] = inv.buyer[k] || c[k] || "";
     setBuyer({ name, ...fill });
-  }
-
-  async function buyerFromDoc(file) {
-    try {
-      const patch = await fillFromFile(file, inv.buyer, ["name", "vat", "cr", "building", "street", "district", "city", "postal"]);
-      if (Object.keys(patch).length) setBuyer(patch);
-    } catch (err) { toast(err.message || "تعذرت قراءة الملف", "error"); }
   }
 
   async function archive(on) {
@@ -147,9 +139,10 @@ export default function InvoiceEditor() {
           <div className="card grid">
             <div className="row">
               <b>{inv.type === "simplified" ? "العميل (اختياري)" : "المشتري"}</b>
-              <span className="spacer" />
-              <button type="button" className="lq sm" onClick={() => docRef.current.click()}>تعبئة من ملف PDF</button>
-              <input ref={docRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => e.target.files[0] && buyerFromDoc(e.target.files[0]).finally(() => (e.target.value = ""))} />
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <span className="sub" style={{ fontSize: 13 }}>تعبئة من ملف PDF:</span>
+              <DocButtons current={inv.buyer} keys={["name", "vat", "cr", "building", "street", "district", "city", "postal"]} onPatch={setBuyer} />
             </div>
             <div className="grid g2">
               <label className="f">الاسم كما في السجل التجاري
