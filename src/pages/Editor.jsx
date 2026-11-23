@@ -314,7 +314,7 @@ function TemplatePanel({ d, setData }) {
           <label className="f">خانة «الباقة» في صفحة السعر<input className="in" placeholder={firstPage?.title || ""} value={s.package || ""} onChange={(e) => setSig({ package: e.target.value })} /></label>
           <label className="f" style={{ gridColumn: "1 / -1" }}>السطر تحت عنوان الغلاف<input className="in" placeholder={intro.replace(/\n/g, " ")} value={s.subtitle ?? ""} onChange={(e) => setSig({ subtitle: e.target.value })} /></label>
           <label className="f" style={{ gridColumn: "1 / -1" }}>أرقام الغلاف (سطر لكل رقم: الرقم | الوصف). اتركها فارغة لتؤخذ من البنود والسعر.
-            <textarea className="in" rows={3} placeholder={"24 | صورة\n5 | فيديوهات\n5,500 | ر.س قبل الضريبة"} defaultValue={statsText}
+            <textarea className="in" rows={3} placeholder={"24 | صورة\n5 | فيديوهات"} defaultValue={statsText}
               onBlur={(e) => setSig({ stats: e.target.value.split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([v]) => v).map(([value, label = ""]) => ({ value, label })) })} />
           </label>
           <div className="sub" style={{ gridColumn: "1 / -1" }}>يستخدم هذا القالب جدول الأسعار والفقرة التمهيدية والشروط. الصناديق والأشرطة والصور تظهر في القالب الأساسي فقط.</div>
