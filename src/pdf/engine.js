@@ -31,12 +31,12 @@ export const MASTER_THEME = {
 };
 export const themeOf = (theme) => ({ ...MASTER_THEME, ...(theme?.v === 2 ? theme : {}) });
 
-const PW = 595.2755905511812; // A4 width
-const ML = 38;
-const MR = 557;
+export const PW = 595.2755905511812; // A4 width
+export const ML = 38;
+export const MR = 557;
 const CW = MR - ML;
-const HEADER_LINE = 115;
-const FOOTER_LINE = 805;
+export const HEADER_LINE = 115;
+export const FOOTER_LINE = 805;
 const TITLE_BASE = 199.35;
 export const CONTENT_LIMIT = 795; // lowest box edge; a last text line sits on 783.55
 const TEXT_DESCENT = 11.45;
@@ -146,7 +146,7 @@ function toBinaryString(bytes) {
 
 const sum = (a) => a.reduce((s, x) => s + x, 0);
 
-class Quote {
+export class Quote {
   constructor(data, assets, pricing, theme) {
     this.d = data;
     this.t = themeOf(theme);

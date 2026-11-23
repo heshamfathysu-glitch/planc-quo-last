@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vite-node test/ar.test.mjs && vite-node test/engine.test.mjs"
+    "test": "vite-node test/ar.test.mjs && vite-node test/engine.test.mjs && vite-node test/invoice.test.mjs"
   },
   "dependencies": {
     "@firecms/neat": "^1.1.0",
@@ -17,6 +17,7 @@
     "firebase": "^13.1.0",
     "jspdf": "^4.2.1",
     "pdfjs-dist": "^6.4.299",
+    "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4"

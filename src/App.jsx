@@ -24,6 +24,8 @@ const page = (load) => lazy(() => load().then((m) => {
 const Wizard = page(() => import("./pages/Wizard.jsx"));
 const Editor = page(() => import("./pages/Editor.jsx"));
 const Quotes = page(() => import("./pages/Quotes.jsx"));
+const Invoices = page(() => import("./pages/Invoices.jsx"));
+const InvoiceEditor = page(() => import("./pages/InvoiceEditor.jsx"));
 const Clients = page(() => import("./pages/Clients.jsx"));
 const Companies = page(() => import("./pages/Companies.jsx"));
 const Dashboard = page(() => import("./pages/Dashboard.jsx"));
@@ -33,6 +35,8 @@ const TITLES = [
   ["/new/", "عرض سعر جديد"],
   ["/quote/", "تعديل عرض السعر"],
   ["/quotes", "سجل العروض"],
+  ["/invoices", "الفواتير"],
+  ["/invoice/", "تعديل الفاتورة"],
   ["/clients", "سجل العملاء"],
   ["/companies", "شركات التسويق والإنتاج"],
   ["/dashboard", "ملخص العروض"],
@@ -84,7 +88,7 @@ function BottomNav({ user, logout }) {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [open]);
-  const inMore = ["/companies", "/dashboard", "/admin"].some((p) => loc.pathname.startsWith(p));
+  const inMore = ["/invoices", "/invoice/", "/companies", "/dashboard", "/admin"].some((p) => loc.pathname.startsWith(p));
   return (
     <>
       <nav className="bottomnav" aria-label="التنقل الرئيسي">
@@ -102,6 +106,7 @@ function BottomNav({ user, logout }) {
           <div className="sheet" role="dialog" aria-modal="true" aria-label="المزيد">
             <div className="grip" />
             <div className="user">{user.name}</div>
+            <NavLink to="/invoices" onClick={close}>الفواتير</NavLink>
             <NavLink to="/companies" onClick={close}>شركات التسويق والإنتاج</NavLink>
             <NavLink to="/dashboard" onClick={close}>الملخص</NavLink>
             <NavLink to="/admin" onClick={close}>لوحة التحكم</NavLink>
@@ -125,6 +130,7 @@ function Shell({ children }) {
         <nav aria-label="القائمة">
           <NavLink to="/" end>الرئيسية</NavLink>
           <NavLink to="/quotes">سجل العروض</NavLink>
+          <NavLink to="/invoices">الفواتير</NavLink>
           <NavLink to="/clients">العملاء</NavLink>
           <NavLink to="/companies">شركات التسويق والإنتاج</NavLink>
           <NavLink to="/dashboard">الملخص</NavLink>
@@ -173,6 +179,8 @@ function Gate() {
         <Route path="/new/:id" element={<Wizard />} />
         <Route path="/quote/:id" element={<Editor />} />
         <Route path="/quotes" element={<Quotes />} />
+        <Route path="/invoices" element={<Invoices />} />
+        <Route path="/invoice/:id" element={<InvoiceEditor />} />
         <Route path="/clients" element={<Clients />} />
         <Route path="/companies" element={<Companies />} />
         <Route path="/dashboard" element={<Dashboard />} />

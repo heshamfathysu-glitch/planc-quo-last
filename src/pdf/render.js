@@ -30,3 +30,21 @@ export async function downloadQuote(data, pricing, theme) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+
+// invoices use the same fonts, logo and theme as quotes
+export async function renderInvoice(inv, theme) {
+  const [{ buildInvoice }, assets] = await Promise.all([import("./invoice.js"), loadAssets()]);
+  const blob = buildInvoice(inv, assets, theme).output("blob");
+  return { blob, url: URL.createObjectURL(blob) };
+}
+
+export async function downloadInvoice(inv, theme) {
+  const { url } = await renderInvoice(inv, theme);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${inv.number || "invoice"} - ${inv.buyer?.name || ""}.pdf`.replace(/[\\/:*?"<>|]+/g, "-");
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
