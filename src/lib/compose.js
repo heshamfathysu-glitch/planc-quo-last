@@ -121,6 +121,7 @@ export function composeQuote(a, pricing, opts = {}) {
   pages.push({ eyebrow: "تفاصيل التعاون", title: "نطاق التنفيذ والاعتماد", blocks: [{ type: "terms", items: terms }, { type: "approval" }] });
 
   return {
+    ...(a.template && a.template !== "classic" ? { template: a.template } : {}),
     client,
     subtitle: `عرض ${what}`,
     quote_no: quoteNumber(issue, opts.code),

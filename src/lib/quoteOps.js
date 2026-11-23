@@ -77,7 +77,7 @@ export async function quoteToInvoice(q, pricing, user) {
     subject: q.data?.subtitle || "",
     buyer: { name: q.data?.client || "", vat: "", cr: "", building: "", street: "", district: "", city: "", postal: "" },
     items: items.length ? items : [{ title: "", desc: "", qty: 1, price: 0 }],
-    discount: Math.round(base * disc) / 100,
+    discount: c?.block.discount_amount ? Number(c.block.discount_amount) : Math.round(base * disc) / 100,
     quoteId: q.id,
     notes: q.data?.quote_no ? `بناء على عرض السعر ${q.data.quote_no}` : "",
   });
