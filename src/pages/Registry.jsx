@@ -3,13 +3,33 @@ import { useRef, useState } from "react";
 import { useAuth } from "../auth.jsx";
 import { put, remove, useCollection } from "../lib/store.js";
 import { toCSV, parseCSV, download, toast, ConfirmButton } from "../ui.jsx";
+import { readCompanyFile, FIELD_LABELS } from "../lib/docExtract.js";
 
-export default function Registry({ col, title, fields, columns, extra }) {
+// fills the form from a CR certificate or national address PDF; the person
+// checks the fields before saving. Empty fields only, unless nothing is typed.
+export async function fillFromFile(file, current, keys) {
+  const found = await readCompanyFile(file);
+  const patch = {};
+  for (const [k, v] of Object.entries(found)) if (keys.includes(k) && v && !current[k]) patch[k] = v;
+  const names = Object.keys(patch).map((k) => FIELD_LABELS[k] || k);
+  if (!names.length) toast(Object.keys(found).length ? "البيانات الموجودة في الملف مكتوبة مسبقا" : "لم نجد بيانات معروفة في الملف. أدخلها يدويا.", Object.keys(found).length ? "ok" : "error");
+  else toast(`تمت تعبئة: ${names.join("، ")}. راجعها قبل الحفظ.`);
+  return patch;
+}
+
+export default function Registry({ col, title, fields, columns, extra, fromFile }) {
   const { user } = useAuth();
   const [items] = useCollection(col);
   const [edit, setEdit] = useState(null);
   const [qx, setQx] = useState("");
   const fileRef = useRef();
+  const docRef = useRef();
+  async function fromDoc(file) {
+    try {
+      const patch = await fillFromFile(file, edit, fields.map((f) => f.key));
+      setEdit((e) => ({ ...e, ...patch }));
+    } catch (err) { toast(err.message || "تعذرت قراءة الملف", "error"); }
+  }
 
   const rows = (items || [])
     .filter((r) => !qx || JSON.stringify(r).includes(qx))
@@ -58,6 +78,13 @@ export default function Registry({ col, title, fields, columns, extra }) {
       {edit && (
         <form className="card grid g2" style={{ marginBottom: 16 }} onSubmit={saveItem}>
           <h2 style={{ gridColumn: "1 / -1", fontSize: 16 }}>{edit.id ? "تعديل السجل" : "إضافة سجل جديد"}</h2>
+          {fromFile && (
+            <div className="row" style={{ gridColumn: "1 / -1" }}>
+              <button type="button" className="lq sm" onClick={() => docRef.current.click()}>تعبئة من السجل التجاري أو العنوان الوطني (PDF)</button>
+              <span className="sub" style={{ fontSize: 13 }}>يُقرأ الملف داخل المتصفح ولا يُرفع لأي جهة.</span>
+              <input ref={docRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => e.target.files[0] && fromDoc(e.target.files[0]).finally(() => (e.target.value = ""))} />
+            </div>
+          )}
           {fields.map((f) => (
             <label key={f.key} className="f" style={f.wide ? { gridColumn: "1 / -1" } : null}>{f.label}
               {f.options ? (
