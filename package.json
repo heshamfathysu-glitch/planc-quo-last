@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vite-node test/ar.test.mjs && vite-node test/engine.test.mjs && vite-node test/signature.test.mjs && vite-node test/invoice.test.mjs && vite-node test/docExtract.test.mjs"
+    "test": "vite-node test/ar.test.mjs && vite-node test/engine.test.mjs && vite-node test/signature.test.mjs && vite-node test/solid.test.mjs && vite-node test/invoice.test.mjs && vite-node test/docExtract.test.mjs"
   },
   "dependencies": {
     "@firecms/neat": "^1.1.0",

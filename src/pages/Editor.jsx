@@ -6,6 +6,7 @@ import { renderQuote, downloadQuote } from "../pdf/render.js";
 import Preview from "../pdf/Preview.jsx";
 import { quoteTotal, clientTypeLabel } from "../lib/compose.js";
 import { STATUSES, DEFAULT_TERMS, TEMPLATES } from "../data/catalog.js";
+import { parseSections, sectionsText } from "../pdf/solidText.js";
 import { money, toast, ConfirmButton, Loading } from "../ui.jsx";
 import NotFound from "./NotFound.jsx";
 import ItemsPanel from "./ItemsPanel.jsx";
@@ -288,7 +289,7 @@ export default function Editor() {
 // which PDF design this quote uses, and the cover fields of the Signature one
 // (empty fields take their text from the quote itself)
 function TemplatePanel({ d, setData }) {
-  const tpl = d.template === "signature" ? "signature" : "classic";
+  const tpl = TEMPLATES.some((t) => t.id === d.template) ? d.template : "classic";
   const s = d.signature || {};
   const setSig = (patch) => {
     const next = { ...s, ...patch };
@@ -320,6 +321,53 @@ function TemplatePanel({ d, setData }) {
           <div className="sub" style={{ gridColumn: "1 / -1" }}>يستخدم هذا القالب جدول الأسعار والفقرة التمهيدية والشروط. الصناديق والأشرطة والصور تظهر في القالب الأساسي فقط.</div>
         </div>
       )}
+      {(tpl === "solid" || tpl === "solid_en") && <SolidPanel key={tpl} tpl={tpl} d={d} setData={setData} intro={intro} firstPage={firstPage} />}
+    </div>
+  );
+}
+
+// texts of the SOLID template, kept per language (data.solid / data.solid_en).
+// An empty field takes its text from the quote; "-" hides that part.
+const lines = (v) => v.split("\n").map((x) => x.trim()).filter(Boolean);
+function SolidPanel({ tpl, d, setData, intro, firstPage }) {
+  const en = tpl === "solid_en";
+  const s = d[tpl] || {};
+  const set = (patch) => {
+    const next = { ...s, ...patch };
+    Object.keys(next).forEach((k) => (next[k] === undefined || next[k] === "" || (Array.isArray(next[k]) && !next[k].length)) && delete next[k]);
+    setData({ [tpl]: Object.keys(next).length ? next : undefined });
+  };
+  const inp = (k, label, ph, wide) => (
+    <label className="f" style={wide ? { gridColumn: "1 / -1" } : undefined}>{label}
+      <input className="in" dir={en ? "ltr" : undefined} placeholder={ph} value={s[k] ?? ""} onChange={(e) => set({ [k]: e.target.value })} />
+    </label>
+  );
+  // multi-line fields save when the field loses focus
+  const area = (k, label, ph, toText, fromText, rows = 3) => (
+    <label className="f" style={{ gridColumn: "1 / -1" }}>{label}
+      <textarea className="in" dir={en ? "ltr" : undefined} rows={rows} placeholder={ph} defaultValue={s[k] == null ? "" : toText(s[k])}
+        onBlur={(e) => set({ [k]: e.target.value.trim() === "-" ? "-" : fromText(e.target.value) })} />
+    </label>
+  );
+  const ex = en
+    ? { eyebrow: "Horse Stable Shoot", sub: "Reels production for the brand in a horse stable setting", stats: "10 | Edited Reels\n5 | Hours of shooting", quote: "We don’t just produce beautiful content! We produce content that sells.", intro: "We shoot videos whose first beauty is achieving your marketing goals.", sections: "# The Shoot | STABLE SHOOT · 5 HRS\nOne 5-hour shoot at a horse stable.\n- Location | Horse stable\n- Duration | 5 continuous hours\n\n# Deliverables | 10 REELS · EDITED\n- 10 Reels | Product and aesthetic videos", chips: "Shooting, Editing, Follow-up & organization, Technical support, A full team with you", desc: "Coffee brand", project: "Horse stable shoot · 5 hours\n10 edited Reels", pkg: "Full Package", pkgDesc: "A 5-hour shoot with a full crew, 10 edited Reels, and delivery of all videos." }
+    : { eyebrow: firstPage?.title || "", sub: intro.replace(/\n/g, " "), stats: "10 | فيديوهات Reels مع المونتاج\n5 | ساعات تصوير", quote: "لا ننتج محتوى جميلًا فقط! بل ننتج محتوى يبيع", intro: "نصوّر فيديوهات جمالها الأول هو تحقيق الأهداف التسويقية.", sections: "# جلسة التصوير | STABLE SHOOT · 5 HRS\nجلسة تصوير واحدة لمدة خمس ساعات.\n- الموقع | إسطبل خيول\n- مدة الجلسة | 5 ساعات تصوير متواصلة\n\n# المخرجات | 10 REELS · EDITED\n- 10 فيديوهات Reels | منوّعة بين المنتجات والجمالية", chips: "تصوير، مونتاج، متابعة وتنظيم، دعم فني، فريق كامل معك", desc: "براند قهوة", project: [firstPage?.title, d.subtitle].filter(Boolean).join("\n"), pkg: "الباقة كاملة", pkgDesc: intro.replace(/\n/g, " ") };
+  return (
+    <div className="grid g2">
+      <div className="sub" style={{ gridColumn: "1 / -1" }}>{en ? "اكتب النصوص بالإنجليزية." : ""} الخانة الفارغة تأخذ نصها من العرض نفسه، واكتب «-» لإخفاء الجزء. السعر يؤخذ من بطاقة السعر، وبيانات التحويل من لوحة التحكم &gt; بيانات الفواتير.</div>
+      {inp("eyebrow", "السطر الصغير فوق عنوان الغلاف", ex.eyebrow)}
+      {inp("subtitle", "السطر تحت عنوان الغلاف", ex.sub)}
+      {area("stats", "أرقام الغلاف (سطر لكل رقم: الرقم | الوصف)", ex.stats,
+        (v) => v.map((x) => `${x.value} | ${x.label}`).join("\n"),
+        (v) => lines(v).map((l) => l.split("|").map((x) => x.trim())).map(([value, label = ""]) => ({ value, label })))}
+      {inp("quote", "العبارة الرئيسية في صفحة نطاق العمل", ex.quote, true)}
+      {area("intro", "الفقرة تحت العبارة", ex.intro, (v) => v, (v) => v.trim(), 2)}
+      {area("sections", "أقسام نطاق العمل: «# العنوان | الوسم» ثم سطر الوصف ثم «- خانة | نصها». اتركها فارغة لتؤخذ من البنود.", ex.sections, sectionsText, parseSections, 7)}
+      {area("chips", "ما ستحصل عليه (افصل بفاصلة)", ex.chips, (v) => v.join("، "), (v) => v.split(/[,،\n]/).map((x) => x.trim()).filter(Boolean), 2)}
+      {inp("client_desc", "وصف العميل تحت اسمه", ex.desc)}
+      {inp("package", "عنوان الباقة في صفحة السعر", ex.pkg)}
+      {area("project", "خانة «المشروع» (سطر لكل معلومة)", ex.project, (v) => v.join("\n"), lines, 2)}
+      {area("package_desc", "وصف الباقة بجانب السعر", ex.pkgDesc, (v) => v, (v) => v.trim(), 2)}
     </div>
   );
 }

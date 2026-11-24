@@ -393,6 +393,8 @@ const SELLER_FIELDS = [
   ["name", "اسم المنشأة كما في السجل التجاري"], ["cr", "رقم السجل التجاري", true], ["vat", "الرقم الضريبي (15 رقما، اتركه فارغا إن لم تكن مسجلا)", true],
   ["building", "رقم المبنى"], ["street", "الشارع"], ["district", "الحي"], ["city", "المدينة"], ["postal", "الرمز البريدي", true],
   ["bank", "البنك"], ["iban", "الآيبان", true], ["holder", "اسم المستفيد من التحويل"],
+  ["account", "رقم الحساب (يظهر في قالب SOLID)", true], ["bank_en", "اسم البنك بالإنجليزية (قالب SOLID الإنجليزي)", true],
+  ["name_en", "اسم المنشأة بالإنجليزية (قالب SOLID الإنجليزي)", true],
 ];
 function Seller() {
   const saved = useSetting("seller", null);

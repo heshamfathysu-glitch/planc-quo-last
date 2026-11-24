@@ -25,10 +25,23 @@ function loadSignatureAssets() {
   return sigP;
 }
 
-// extra: { seller } for the Signature footer (commercial registration)
+// the SOLID template (Arabic and English) uses the same logos as Signature
+let solidP = null;
+function loadSolidAssets() {
+  solidP ||= Promise.all([loadAssets(), bytes(sigLogoUrl), bytes(sigCoverUrl), import("./solid.js")])
+    .then(([base, logo, logoCover, mod]) => ({ assets: { ...base, logo, logoCover }, build: mod.buildSolid }))
+    .catch((e) => { solidP = null; throw e; });
+  return solidP;
+}
+
+// extra: { seller } for the Signature and SOLID footers (commercial
+// registration) and the SOLID bank details
 export async function renderQuote(data, pricing, theme, extra = {}) {
   let doc, warnings;
-  if (data.template === "signature") {
+  if (data.template === "solid" || data.template === "solid_en") {
+    const { assets, build } = await loadSolidAssets();
+    ({ doc, warnings } = build(data, assets, pricing, { seller: extra.seller }));
+  } else if (data.template === "signature") {
     const { assets, build } = await loadSignatureAssets();
     ({ doc, warnings } = build(data, assets, pricing, { seller: extra.seller }));
   } else {
